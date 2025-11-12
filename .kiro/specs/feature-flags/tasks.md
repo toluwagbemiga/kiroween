@@ -1,0 +1,200 @@
+# Implementation Plan
+
+- [ ] 1. Set up project structure and gRPC service definition
+  - Create directory structure for feature-flag-service with cmd, internal, and proto folders
+  - Define featureflags.proto with IsFeatureEnabled, GetAllFeatureFlags, GetFeatureFlagDetails, and HealthCheck RPCs
+  - Generate Go code from proto file using protoc and gRPC plugins
+  - Initialize go.mod with required dependencies (gRPC, Unleash SDK, Redis client)
+  - _Requirements: 1.1, 3.1, 4.1, 7.1, 7.2, 7.3_
+
+- [ ] 2. Implement data models and proto definitions
+  - [ ] 2.1 Create domain models for evaluation context
+    - Write EvaluationContext struct with UserID, SessionID, Environment, Properties fields
+    - Implement ToUnleashContext conversion method
+    - Write PropertyValue conversion functions for string, number, and boolean types
+    - _Requirements: 1.2, 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 2.2 Create domain models for feature flags
+    - Write FeatureFlagDetails struct with Name, Description, Enabled, Strategies fields
+    - Write FlagEvaluationEvent struct for analytics tracking
+    - _Requirements: 8.1, 8.2, 8.3_
+
+- [ ] 3. Implement Unleash client integration
+  - [ ] 3.1 Create UnleashClient wrapper
+    - Initialize Unleash SDK with configurable URL and API token from environment
+    - Implement WaitForReady method with timeout
+    - Set refresh interval to 15 seconds for strategy updates
+    - Set metrics interval to 60 seconds
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [ ] 3.2 Implement Unleash listener for monitoring
+    - Create UnleashListener that logs OnReady, OnError, and OnCount events
+    - Update Prometheus metrics on Unleash sync status changes
+    - Log warnings when Unleash connection fails
+    - _Requirements: 4.5, 10.5_
+  - [ ] 3.3 Implement feature flag evaluation
+    - Create IsEnabled method that calls Unleash SDK with context
+    - Create GetVariant method for variant support
+    - Create ListFeatures method to get all available flags
+    - Return false as default when feature doesn't exist
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.1, 2.2, 2.3, 2.4_
+
+- [ ] 4. Implement Redis caching layer
+  - [ ] 4.1 Create CacheRepository interface and implementation
+    - Implement Get, Set, and Delete methods for cache operations
+    - Add TTL support for cached values (30 seconds for flag evaluations)
+    - Handle Redis connection errors gracefully without blocking operations
+    - _Requirements: 1.5_
+  - [ ] 4.2 Implement cache key generation
+    - Create cache key format: "feature_flag:{feature_name}:{user_id}:{context_hash}"
+    - Implement context hashing function for consistent cache keys
+    - Handle cache invalidation when Unleash updates flags
+    - _Requirements: 1.5_
+
+- [ ] 5. Implement service layer business logic
+  - [ ] 5.1 Create FeatureFlagService with IsFeatureEnabled method
+    - Check Redis cache first for matching evaluation
+    - Evaluate with Unleash SDK if cache miss
+    - Store result in Redis with 30-second TTL
+    - Track evaluation asynchronously with Analytics Service
+    - Return false as safe default on errors
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.1, 8.2_
+  - [ ] 5.2 Implement GetAllFeatureFlags method
+    - Get list of all features from Unleash
+    - Evaluate each feature for the provided context
+    - Return map of feature names to boolean values
+    - Use caching for individual evaluations
+    - _Requirements: 1.1, 1.5_
+  - [ ] 5.3 Implement GetFeatureFlagDetails method
+    - Query Unleash for feature metadata
+    - Return feature name, description, enabled state, and strategies
+    - Cache feature details with 60-second TTL
+    - _Requirements: 2.5_
+
+- [ ] 6. Implement permission checking integration
+  - [ ] 6.1 Create PermissionChecker interface
+    - Define HasFeaturePermission method that calls User Auth Service
+    - Implement gRPC client for User Auth Service
+    - _Requirements: 9.1, 9.2_
+  - [ ] 6.2 Integrate RBAC checks into flag evaluation
+    - Check user permissions before evaluating protected features
+    - Return false if user lacks required role
+    - Cache permission checks in Redis with 60-second TTL
+    - Log all permission denials with user ID and feature name
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [ ] 7. Implement analytics tracking integration
+  - [ ] 7.1 Create AnalyticsTracker interface
+    - Define TrackFlagEvaluation method that calls Analytics Service
+    - Implement gRPC client for Analytics Service
+    - _Requirements: 8.1, 8.2, 8.3_
+  - [ ] 7.2 Implement async event tracking
+    - Create event queue with buffering (max 10,000 events)
+    - Batch events and send to Analytics Service every 10 seconds
+    - Drop oldest events when queue exceeds capacity
+    - Handle Analytics Service unavailability gracefully
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+
+- [ ] 8. Implement gRPC handlers and middleware
+  - [ ] 8.1 Create gRPC handler implementation
+    - Implement IsFeatureEnabled handler that converts proto request to domain model
+    - Implement GetAllFeatureFlags handler with context conversion
+    - Implement GetFeatureFlagDetails handler
+    - Implement HealthCheck handler that verifies Unleash connectivity
+    - _Requirements: 1.1, 1.2, 1.3, 5.1, 5.2, 7.4, 7.5_
+  - [ ] 8.2 Implement logging and tracing middleware
+    - Add structured logging for all gRPC calls with request/response details
+    - Implement OpenTelemetry tracing spans for all operations
+    - Log errors with full context (feature name, user ID, error message)
+    - _Requirements: 10.2, 10.3, 10.4_
+  - [ ] 8.3 Implement panic recovery middleware
+    - Catch panics in gRPC handlers
+    - Log stack trace with structured logging
+    - Return false as safe default to caller
+    - _Requirements: 10.2_
+
+- [ ] 9. Implement observability features
+  - [ ] 9.1 Add Prometheus metrics
+    - Create counter for total flag evaluations (labeled by feature_name and enabled)
+    - Create gauge for cache hit rate per feature
+    - Create gauge for Unleash sync status (1=connected, 0=disconnected)
+    - Create histogram for evaluation latency
+    - Expose metrics endpoint on configurable port (default 9091)
+    - _Requirements: 10.1, 10.5_
+  - [ ] 9.2 Implement structured logging
+    - Use zap logger for structured JSON logging
+    - Log service startup with version, Unleash URL, and configuration
+    - Log all errors with context fields (feature_name, user_id, latency)
+    - Log warnings when Unleash sync fails
+    - _Requirements: 10.2, 10.3, 10.5_
+  - [ ] 9.3 Add distributed tracing
+    - Initialize OpenTelemetry tracer with OTLP exporter
+    - Create spans for all gRPC calls
+    - Create spans for Unleash evaluations
+    - Create spans for cache operations
+    - _Requirements: 10.4_
+
+- [ ] 10. Implement configuration management
+  - Create config struct with all environment variables
+  - Implement config loading from environment with defaults
+  - Validate required configuration (Unleash URL, API token) on startup
+  - Log configuration values on startup (excluding API token)
+  - _Requirements: 4.1, 4.2, 7.4_
+
+- [ ] 11. Create Dockerfile and Docker Compose configuration
+  - [ ] 11.1 Write Dockerfile for feature-flag-service
+    - Create multi-stage Dockerfile with Go build and minimal runtime image
+    - Copy binary and set appropriate permissions
+    - Expose gRPC port and metrics port
+    - _Requirements: 6.1, 7.5_
+  - [ ] 11.2 Add Unleash to docker-compose.yml
+    - Add unleash-db service with PostgreSQL 15
+    - Add unleash service with Unleash server image
+    - Configure Unleash with database connection and API tokens
+    - Expose Unleash Admin UI on port 4242
+    - _Requirements: 4.1, 4.2, 6.2, 6.3_
+  - [ ] 11.3 Add feature-flag-service to docker-compose.yml
+    - Configure service with Unleash URL and API token
+    - Add dependencies on Unleash and Redis
+    - Configure environment variables for all integrations
+    - Add health check configuration
+    - _Requirements: 6.1, 6.2, 6.4, 6.5, 7.4, 7.5_
+
+- [ ] 12. Create demo data generation script
+  - Create sample feature flags in Unleash via API
+  - Add flags with different strategies (default, gradual rollout, user targeting)
+  - Create test users for flag evaluation
+  - Document flag names and purposes in script comments
+  - _Requirements: 6.4_
+
+- [ ] 13. Create main.go entry point
+  - Initialize configuration from environment
+  - Set up Unleash client with retry logic
+  - Initialize Redis client
+  - Create service and repository instances
+  - Start gRPC server on configured port
+  - Set up graceful shutdown handling
+  - Wait for Unleash to be ready before accepting requests
+  - _Requirements: 4.3, 4.4, 7.3, 7.4, 7.5_
+
+- [ ] 14. Integrate with GraphQL Gateway
+  - Add feature-flag gRPC client to GraphQL Gateway
+  - Implement isFeatureEnabled GraphQL query
+  - Add authentication middleware to extract user ID from token
+  - Forward requests to Feature Flag Service via gRPC
+  - Return false as safe default when service unavailable
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ]* 15. Write unit tests for core functionality
+  - Write table-driven tests for evaluation logic with mocked Unleash client
+  - Write tests for cache hit/miss scenarios
+  - Write tests for permission checking with mocked Auth Service
+  - Write tests for analytics tracking with mocked Analytics Service
+  - Write tests for error handling and fallback behavior
+  - Aim for >80% code coverage
+  - _Requirements: All_
+
+- [ ]* 16. Write integration tests
+  - Write tests for gRPC handlers with test server
+  - Write tests for Unleash integration using Unleash test server
+  - Write tests for Redis operations using testcontainers
+  - Write end-to-end tests for complete flow with all dependencies
+  - _Requirements: All_

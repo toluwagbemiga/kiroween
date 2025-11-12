@@ -1,0 +1,384 @@
+# GraphQL Schema for HAUNTED SAAS SKELETON
+# This is the unified API that abstracts all backend microservices
+
+scalar JSON
+scalar Time
+
+# ============================================================================
+# AUTHENTICATION & AUTHORIZATION
+# ============================================================================
+
+type Query {
+  # Get current authenticated user
+  me: User!
+  
+  # Get user by ID (admin only)
+  user(id: ID!): User
+  
+  # List all users (admin only)
+  users(limit: Int, offset: Int): UserConnection!
+  
+  # RBAC Queries
+  myPermissions: [String!]!
+  roles: [Role!]!
+  role(id: ID!): Role
+  
+  # ============================================================================
+  # BILLING
+  # ============================================================================
+  
+  # Get available subscription plans
+  plans: [Plan!]!
+  
+  # Get current user's subscription
+  mySubscription: Subscription
+  
+  # Get subscription by ID
+  subscription(id: ID!): Subscription
+  
+  # Get billing portal URL
+  billingPortalUrl: String!
+  
+  # ============================================================================
+  # FEATURE FLAGS
+  # ============================================================================
+  
+  # Check if a feature is enabled for current user
+  isFeatureEnabled(featureName: String!, properties: JSON): Boolean!
+  
+  # Get feature variant
+  featureVariant(featureName: String!, properties: JSON): FeatureVariant
+  
+  # List all available features (admin only)
+  availableFeatures: [Feature!]!
+  
+  # ============================================================================
+  # LLM GATEWAY
+  # ============================================================================
+  
+  # List available prompts
+  availablePrompts: [PromptMetadata!]!
+  
+  # Get prompt details
+  promptDetails(name: String!): PromptMetadata
+  
+  # Get LLM usage stats for current user
+  myLLMUsage: LLMUsageStats!
+  
+  # ============================================================================
+  # NOTIFICATIONS
+  # ============================================================================
+  
+  # Get Socket.IO connection token
+  notificationToken: NotificationToken!
+  
+  # Get notification preferences
+  myNotificationPreferences: NotificationPreferences!
+  
+  # ============================================================================
+  # ANALYTICS
+  # ============================================================================
+  
+  # Get analytics for current user
+  myAnalytics(startDate: Time, endDate: Time): AnalyticsSummary!
+}
+
+type Mutation {
+  # ============================================================================
+  # AUTHENTICATION
+  # ============================================================================
+  
+  # Register new user (public)
+  register(input: RegisterInput!): AuthPayload!
+  
+  # Login (public)
+  login(input: LoginInput!): AuthPayload!
+  
+  # Logout
+  logout: Boolean!
+  
+  # Request password reset (public)
+  requestPasswordReset(email: String!): Boolean!
+  
+  # Reset password (public)
+  resetPassword(token: String!, newPassword: String!): Boolean!
+  
+  # Change password (authenticated)
+  changePassword(currentPassword: String!, newPassword: String!): Boolean!
+  
+  # Update profile
+  updateProfile(input: UpdateProfileInput!): User!
+  
+  # ============================================================================
+  # RBAC
+  # ============================================================================
+  
+  # Assign role to user (admin only)
+  assignRole(userId: ID!, roleId: ID!): User!
+  
+  # Remove role from user (admin only)
+  removeRole(userId: ID!, roleId: ID!): User!
+  
+  # Create custom role (admin only)
+  createRole(input: CreateRoleInput!): Role!
+  
+  # ============================================================================
+  # BILLING
+  # ============================================================================
+  
+  # Create subscription checkout session
+  createSubscriptionCheckout(planId: ID!): CheckoutPayload!
+  
+  # Cancel subscription
+  cancelSubscription: Subscription!
+  
+  # Update subscription
+  updateSubscription(planId: ID!): Subscription!
+  
+  # ============================================================================
+  # LLM GATEWAY
+  # ============================================================================
+  
+  # Call a prompt template
+  callPrompt(name: String!, variables: JSON!): PromptResponse!
+  
+  # Call LLM directly (advanced users)
+  callLLM(input: LLMCallInput!): LLMResponse!
+  
+  # ============================================================================
+  # NOTIFICATIONS
+  # ============================================================================
+  
+  # Send notification
+  sendNotification(input: SendNotificationInput!): Boolean!
+  
+  # Update notification preferences
+  updateNotificationPreferences(input: NotificationPreferencesInput!): NotificationPreferences!
+  
+  # Mark notification as read
+  markNotificationRead(notificationId: ID!): Boolean!
+  
+  # ============================================================================
+  # ANALYTICS
+  # ============================================================================
+  
+  # Track custom event
+  trackEvent(input: TrackEventInput!): Boolean!
+  
+  # Identify user (update user properties)
+  identifyUser(properties: JSON!): Boolean!
+}
+
+# ============================================================================
+# USER & AUTH TYPES
+# ============================================================================
+
+type User {
+  id: ID!
+  email: String!
+  name: String
+  teamId: String
+  roles: [Role!]!
+  permissions: [String!]!
+  enabledFeatures: [String!]!
+  createdAt: Time!
+  updatedAt: Time!
+  
+  # Relationships
+  subscription: Subscription
+}
+
+type Role {
+  id: ID!
+  name: String!
+  description: String
+  permissions: [String!]!
+  isSystem: Boolean!
+  createdAt: Time!
+}
+
+type AuthPayload {
+  token: String!
+  refreshToken: String!
+  user: User!
+  expiresAt: Time!
+}
+
+type UserConnection {
+  nodes: [User!]!
+  totalCount: Int!
+}
+
+input RegisterInput {
+  email: String!
+  password: String!
+  name: String
+  teamId: String
+}
+
+input LoginInput {
+  email: String!
+  password: String!
+}
+
+input UpdateProfileInput {
+  name: String
+  email: String
+}
+
+input CreateRoleInput {
+  name: String!
+  description: String
+  permissions: [String!]!
+}
+
+# ============================================================================
+# BILLING TYPES
+# ============================================================================
+
+type Plan {
+  id: ID!
+  name: String!
+  description: String
+  price: Float!
+  currency: String!
+  interval: String!
+  features: [String!]!
+  stripePriceId: String!
+  isActive: Boolean!
+}
+
+type Subscription {
+  id: ID!
+  userId: ID!
+  planId: ID!
+  status: String!
+  currentPeriodStart: Time!
+  currentPeriodEnd: Time!
+  cancelAtPeriodEnd: Boolean!
+  stripeSubscriptionId: String!
+  createdAt: Time!
+  updatedAt: Time!
+  
+  # Relationships
+  plan: Plan!
+  user: User!
+}
+
+type CheckoutPayload {
+  sessionId: String!
+  url: String!
+}
+
+# ============================================================================
+# FEATURE FLAGS TYPES
+# ============================================================================
+
+type Feature {
+  name: String!
+  description: String!
+  enabled: Boolean!
+  createdAt: Time!
+}
+
+type FeatureVariant {
+  enabled: Boolean!
+  variantName: String!
+  payload: JSON
+}
+
+# ============================================================================
+# LLM GATEWAY TYPES
+# ============================================================================
+
+type PromptMetadata {
+  name: String!
+  description: String!
+  version: String!
+  variables: [String!]!
+  model: String!
+  temperature: Float!
+}
+
+type PromptResponse {
+  content: String!
+  model: String!
+  tokensUsed: Int!
+  cost: Float!
+  finishReason: String!
+}
+
+type LLMResponse {
+  content: String!
+  model: String!
+  tokensUsed: Int!
+  cost: Float!
+  finishReason: String!
+}
+
+type LLMUsageStats {
+  totalCalls: Int!
+  totalTokens: Int!
+  totalCost: Float!
+  callsByModel: JSON!
+}
+
+input LLMCallInput {
+  model: String!
+  messages: JSON!
+  temperature: Float
+  maxTokens: Int
+}
+
+# ============================================================================
+# NOTIFICATIONS TYPES
+# ============================================================================
+
+type NotificationToken {
+  token: String!
+  socketUrl: String!
+  expiresAt: Time!
+}
+
+type NotificationPreferences {
+  emailEnabled: Boolean!
+  pushEnabled: Boolean!
+  inAppEnabled: Boolean!
+  channels: JSON!
+}
+
+input NotificationPreferencesInput {
+  emailEnabled: Boolean
+  pushEnabled: Boolean
+  inAppEnabled: Boolean
+  channels: JSON
+}
+
+input SendNotificationInput {
+  userId: ID!
+  title: String!
+  message: String!
+  type: String!
+  data: JSON
+}
+
+# ============================================================================
+# ANALYTICS TYPES
+# ============================================================================
+
+type AnalyticsSummary {
+  totalEvents: Int!
+  uniqueUsers: Int!
+  eventsByType: JSON!
+  topEvents: [EventCount!]!
+}
+
+type EventCount {
+  eventName: String!
+  count: Int!
+}
+
+input TrackEventInput {
+  eventName: String!
+  properties: JSON
+}

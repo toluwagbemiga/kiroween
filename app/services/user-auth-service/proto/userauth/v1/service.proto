@@ -1,0 +1,195 @@
+syntax = "proto3";
+
+package userauth.v1;
+
+option go_package = "github.com/haunted-saas/user-auth-service/proto/userauth/v1;userauthv1";
+
+import "google/protobuf/timestamp.proto";
+
+service UserAuthService {
+  // Authentication
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
+  
+  // Password Management
+  rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
+  
+  // RBAC Management
+  rpc CreateRole(CreateRoleRequest) returns (Role);
+  rpc UpdateRole(UpdateRoleRequest) returns (Role);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc AssignRoleToUser(AssignRoleRequest) returns (AssignRoleResponse);
+  rpc RevokeRoleFromUser(RevokeRoleRequest) returns (RevokeRoleResponse);
+  
+  // Authorization
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+}
+
+// Authentication Messages
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string name = 3;
+}
+
+message RegisterResponse {
+  User user = 1;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+  string ip_address = 3;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  User user = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message LogoutRequest {
+  string session_token = 1;
+  bool all_devices = 2;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  string user_id = 2;
+  string team_id = 3;
+  repeated string roles = 4;
+  repeated string permissions = 5;
+  User user = 6;
+}
+
+message RefreshSessionRequest {
+  string refresh_token = 1;
+}
+
+message RefreshSessionResponse {
+  string access_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+// Password Management Messages
+message PasswordResetRequest {
+  string email = 1;
+}
+
+message PasswordResetResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ResetPasswordRequest {
+  string token = 1;
+  string new_password = 2;
+}
+
+message ResetPasswordResponse {
+  bool success = 1;
+}
+
+// RBAC Messages
+message CreateRoleRequest {
+  string name = 1;
+  string description = 2;
+  repeated string permission_ids = 3;
+}
+
+message UpdateRoleRequest {
+  string role_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string permission_ids = 4;
+}
+
+message DeleteRoleRequest {
+  string role_id = 1;
+}
+
+message DeleteRoleResponse {
+  bool success = 1;
+}
+
+message AssignRoleRequest {
+  string user_id = 1;
+  string role_id = 2;
+}
+
+message AssignRoleResponse {
+  bool success = 1;
+}
+
+message RevokeRoleRequest {
+  string user_id = 1;
+  string role_id = 2;
+}
+
+message RevokeRoleResponse {
+  bool success = 1;
+}
+
+message CheckPermissionRequest {
+  string user_id = 1;
+  string permission = 2;
+  string session_token = 3;
+}
+
+message CheckPermissionResponse {
+  bool allowed = 1;
+  string reason = 2;
+}
+
+message GetUserPermissionsRequest {
+  string user_id = 1;
+}
+
+message GetUserPermissionsResponse {
+  repeated string permissions = 1;
+}
+
+// Domain Models
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  bool is_active = 4;
+  bool is_locked = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+  repeated Role roles = 8;
+}
+
+message Role {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  bool is_system = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  repeated Permission permissions = 7;
+}
+
+message Permission {
+  string id = 1;
+  string name = 2;
+  string resource = 3;
+  string action = 4;
+  string description = 5;
+  google.protobuf.Timestamp created_at = 6;
+}

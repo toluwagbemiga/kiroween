@@ -1,0 +1,187 @@
+# Implementation Plan
+
+- [ ] 1. Set up project structure and gRPC service definition
+  - Create directory structure for analytics-service with cmd, internal, proto, and migrations folders
+  - Define analytics.proto with TrackEvent, IdentifyUser, GetEventCount, GetUserCount, and HealthCheck RPCs
+  - Generate Go code from proto file using protoc and gRPC plugins
+  - Initialize go.mod with required dependencies (gRPC, pgx, GORM, Redis client)
+  - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 6.2, 6.3_
+
+- [ ] 2. Implement data models and database schema
+  - [ ] 2.1 Create domain models for Event and UserIdentity
+    - Write Event struct with ID, EventName, UserID, Properties, Timestamp fields
+    - Write UserIdentity struct with UserID, Properties, FirstSeen, LastSeen fields
+    - Implement PropertyValue conversion functions for string, number, and boolean types
+    - _Requirements: 1.2, 2.2, 3.5_
+  - [ ] 2.2 Create PostgreSQL migration files
+    - Write migration for events table with UUID primary key, indexes on user_id, event_name, timestamp
+    - Write migration for user_identities table with user_id primary key, JSONB properties column
+    - Add GIN indexes for JSONB properties columns for efficient querying
+    - _Requirements: 3.1, 3.3, 5.3_
+  - [ ] 2.3 Implement validation logic
+    - Write validation functions for event name (non-empty, max 255 chars)
+    - Write validation for properties payload size (max 10KB)
+    - Write validation for time range queries (max 90 days)
+    - _Requirements: 1.5, 3.5, 5.5_
+
+- [ ] 3. Implement PostgreSQL repository layer
+  - [ ] 3.1 Create EventRepository with CRUD operations
+    - Implement Create method with transaction support and retry logic
+    - Implement GetCount method with time range filtering and grouping by hour/day/week
+    - Add exponential backoff retry logic for transient database errors (up to 5 retries)
+    - _Requirements: 1.1, 3.1, 3.2, 3.4, 5.1, 5.2, 5.3, 5.4_
+  - [ ] 3.2 Create UserRepository with upsert operations
+    - Implement Upsert method that creates or updates user identity with property merging
+    - Implement GetUserCount method for unique user counting in time range
+    - Handle null property values by removing them from the user identity record
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 5.2_
+  - [ ] 3.3 Implement database connection management
+    - Create connection pool with configurable max connections (default 25)
+    - Implement health check function to verify database connectivity
+    - Add connection retry logic with exponential backoff on startup
+    - _Requirements: 3.4, 6.4, 6.5_
+
+- [ ] 4. Implement Redis caching layer
+  - [ ] 4.1 Create CacheRepository interface and implementation
+    - Implement Get, Set, and Delete methods for cache operations
+    - Add TTL support for cached values (configurable, default 5 minutes)
+    - Handle Redis connection errors gracefully without blocking operations
+    - _Requirements: 5.3_
+  - [ ] 4.2 Implement cache key generation
+    - Create cache key format for event count queries: "analytics:event_count:{event_name}:{start}:{end}:{group_by}"
+    - Create cache key format for user count queries: "analytics:user_count:{start}:{end}"
+    - Implement hash function for consistent cache key generation
+    - _Requirements: 5.3_
+
+- [ ] 5. Implement service layer business logic
+  - [ ] 5.1 Create AnalyticsService with TrackEvent method
+    - Validate event name and properties before persistence
+    - Set timestamp to current time if not provided
+    - Call EventRepository.Create with retry logic
+    - Return generated event ID on success
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 3.5_
+  - [ ] 5.2 Implement IdentifyUser method
+    - Validate user ID and properties
+    - Merge properties with existing user identity (upsert behavior)
+    - Update last_seen timestamp on each call
+    - Handle null property values by removing them
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [ ] 5.3 Implement GetEventCount method with caching
+    - Check Redis cache first for matching query
+    - Query PostgreSQL if cache miss
+    - Store result in Redis with 5-minute TTL
+    - Support grouping by hour, day, or week
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [ ] 5.4 Implement GetUserCount method with caching
+    - Check Redis cache first for matching time range
+    - Query PostgreSQL for unique user count if cache miss
+    - Store result in Redis with 5-minute TTL
+    - _Requirements: 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 6. Implement gRPC handlers and middleware
+  - [ ] 6.1 Create gRPC handler implementation
+    - Implement TrackEvent handler that converts proto request to domain model
+    - Implement IdentifyUser handler with property conversion
+    - Implement GetEventCount handler with time range validation
+    - Implement GetUserCount handler
+    - Implement HealthCheck handler that verifies database connectivity
+    - _Requirements: 1.1, 2.1, 4.1, 4.2, 4.3, 4.4, 5.1, 5.2, 6.1, 6.2, 6.5_
+  - [ ] 6.2 Implement rate limiting middleware
+    - Create token bucket rate limiter with 1000 events per user per minute
+    - Track rate limits per user ID in Redis
+    - Return ErrRateLimitExceeded when limit exceeded
+    - _Requirements: 7.4_
+  - [ ] 6.3 Implement logging and tracing middleware
+    - Add structured logging for all gRPC calls with request/response details
+    - Implement OpenTelemetry tracing spans for all operations
+    - Log errors with full context (user ID, event name, error message)
+    - _Requirements: 8.2, 8.3, 8.4_
+  - [ ] 6.4 Implement panic recovery middleware
+    - Catch panics in gRPC handlers
+    - Log stack trace with structured logging
+    - Return internal error to caller
+    - _Requirements: 8.2_
+
+- [ ] 7. Implement security features
+  - [ ] 7.1 Add input sanitization
+    - Sanitize all string properties to prevent SQL injection
+    - Validate property types match expected schema
+    - Reject properties with suspicious patterns
+    - _Requirements: 7.1_
+  - [ ] 7.2 Implement PII encryption
+    - Identify sensitive property keys (email, phone, address, etc.)
+    - Encrypt sensitive properties using AES-256 before storage
+    - Store encryption key in environment variable
+    - _Requirements: 7.3_
+  - [ ] 7.3 Add audit logging
+    - Log all IdentifyUser calls with user ID and timestamp
+    - Log all permission denials with context
+    - Store audit logs separately from application logs
+    - _Requirements: 7.2, 7.5_
+
+- [ ] 8. Implement observability features
+  - [ ] 8.1 Add Prometheus metrics
+    - Create counter for total events tracked (labeled by event_name)
+    - Create histogram for TrackEvent latency
+    - Create gauge for database connection pool size
+    - Create counter for cache hit/miss rate
+    - Expose metrics endpoint on configurable port (default 9090)
+    - _Requirements: 8.1, 8.5_
+  - [ ] 8.2 Implement structured logging
+    - Use zap logger for structured JSON logging
+    - Log service startup with version and configuration
+    - Log all errors with context fields (user_id, event_name, latency)
+    - Log warnings for slow database queries (>500ms)
+    - _Requirements: 8.2, 8.3, 8.5_
+  - [ ] 8.3 Add distributed tracing
+    - Initialize OpenTelemetry tracer with OTLP exporter
+    - Create spans for all gRPC calls
+    - Create spans for database operations
+    - Create spans for cache operations
+    - _Requirements: 8.4_
+
+- [ ] 9. Implement configuration management
+  - Create config struct with all environment variables
+  - Implement config loading from environment with defaults
+  - Validate required configuration on startup
+  - Log configuration values on startup (excluding secrets)
+  - _Requirements: 6.4_
+
+- [ ] 10. Create Dockerfile and Docker Compose configuration
+  - Write multi-stage Dockerfile for analytics-service
+  - Add analytics-service to docker-compose.yml with PostgreSQL and Redis dependencies
+  - Configure environment variables in docker-compose
+  - Add health check configuration for container orchestration
+  - _Requirements: 6.5_
+
+- [ ] 11. Create main.go entry point
+  - Initialize configuration from environment
+  - Set up database connections with retry logic
+  - Initialize Redis client
+  - Create service and repository instances
+  - Start gRPC server on configured port
+  - Set up graceful shutdown handling
+  - _Requirements: 6.3, 6.4, 6.5_
+
+- [ ] 12. Integrate with GraphQL Gateway
+  - Add analytics gRPC client to GraphQL Gateway
+  - Implement trackEvent GraphQL mutation
+  - Implement identifyUser GraphQL mutation
+  - Add authentication middleware to verify user tokens
+  - Forward requests to Analytics Service via gRPC
+  - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+
+- [ ]* 13. Write unit tests for core functionality
+  - Write table-driven tests for validation logic
+  - Write tests for service layer with mocked repositories
+  - Write tests for error handling and retry logic
+  - Write tests for cache hit/miss scenarios
+  - Aim for >80% code coverage
+  - _Requirements: All_
+
+- [ ]* 14. Write integration tests
+  - Write tests for gRPC handlers with test server
+  - Write tests for PostgreSQL operations using testcontainers
+  - Write tests for Redis operations using testcontainers
+  - Write end-to-end tests for complete flow
+  - _Requirements: All_

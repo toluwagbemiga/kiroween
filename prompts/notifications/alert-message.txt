@@ -1,0 +1,13 @@
+Generate a clear and concise alert notification message.
+
+Alert Type: {{.alert_type}}
+Severity: {{.severity}}
+Details: {{.details}}
+
+Create a notification message that:
+- Clearly states what happened
+- Indicates the severity level
+- Provides immediate action items if needed
+- Is concise (under 200 characters)
+
+Message:

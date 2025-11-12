@@ -1,0 +1,237 @@
+# Implementation Plan: LLM Gateway Service
+
+- [ ] 1. Set up project structure and dependencies
+  - Create Go module with `go mod init`
+  - Add dependencies: grpc, go-openai, fsnotify, zerolog, godotenv
+  - Create directory structure: `/cmd`, `/internal`, `/proto`, `/prompts`
+  - Create sample prompts in `/prompts` directory for testing
+  - _Requirements: All_
+
+- [ ] 2. Define gRPC service contracts
+  - [ ] 2.1 Create protobuf definitions for LLM gateway service
+    - Write `llm_gateway.proto` with CallPrompt and utility methods
+    - Define request/response messages with all parameters
+    - Define TokenUsage, LLMParameters message types
+    - _Requirements: 3.1, 3.2, 5.1, 5.2, 6.1, 6.2, 6.3, 6.4, 6.5, 9.1, 9.2, 10.1, 10.2_
+  - [ ] 2.2 Generate Go code from protobuf
+    - Run `protoc` to generate gRPC server and client code
+    - Verify generated code compiles without errors
+    - _Requirements: 3.1, 3.2, 5.1, 5.2, 6.1, 6.2, 6.3, 6.4, 6.5, 9.1, 9.2, 10.1, 10.2_
+
+- [ ] 3. Implement prompt loader and cache
+  - [ ] 3.1 Create prompt data structures
+    - Define `Prompt` struct with content, template, metadata
+    - Define `PromptCache` with thread-safe map
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [ ] 3.2 Implement prompt file loading
+    - Create `PromptLoader` with directory scanning
+    - Implement recursive directory traversal
+    - Support .txt, .md, .prompt file extensions
+    - Parse frontmatter for metadata (optional)
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 3.3 Implement template parsing and variable extraction
+    - Parse prompt content as Go template
+    - Extract variable placeholders using regex ({{variable_name}})
+    - Support nested variables with dot notation ({{user.name}})
+    - Store required variables list in Prompt struct
+    - _Requirements: 3.2, 3.3_
+  - [ ] 3.4 Implement prompt caching
+    - Store loaded prompts in thread-safe cache
+    - Implement cache lookup by relative path
+    - Add cache invalidation for reloads
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 3.5 Implement file watching for hot reload
+    - Initialize fsnotify watcher for prompts directory
+    - Watch for file create, modify, delete events
+    - Reload affected prompts on file changes
+    - Log reload events
+    - _Requirements: 1.3_
+
+- [ ] 4. Implement variable substitution
+  - [ ] 4.1 Create variable substitutor
+    - Parse JSON variables from request
+    - Validate required variables are present
+    - Execute template with variable map
+    - Return rendered prompt text
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 4.2 Implement error handling for missing variables
+    - Check all required variables before rendering
+    - Return clear error messages for missing variables
+    - Include variable name in error
+    - _Requirements: 3.3_
+
+- [ ] 5. Implement LLM provider abstraction
+  - [ ] 5.1 Define LLM provider interface
+    - Create `LLMProvider` interface with Call method
+    - Define `LLMRequest` and `LLMResponse` structs
+    - Include model validation method
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 5.2 Implement OpenAI provider
+    - Initialize OpenAI client with API key
+    - Implement Call method using ChatCompletion API
+    - Parse response and extract token usage
+    - Support GPT-4, GPT-3.5 models
+    - Implement model validation
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 5.3 Implement provider router
+    - Create `LLMRouter` to select provider
+    - Implement provider selection logic (default or specified)
+    - Implement model selection logic (default or specified)
+    - Return errors for unsupported providers/models
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 6. Implement request handling and parameters
+  - [ ] 6.1 Implement parameter validation
+    - Validate temperature range (0.0 - 2.0)
+    - Validate max_tokens range (1 - model max)
+    - Validate top_p range (0.0 - 1.0)
+    - Set defaults for missing parameters
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+  - [ ] 6.2 Implement timeout handling
+    - Create context with timeout from request or default
+    - Validate timeout range (5-120 seconds)
+    - Cancel LLM API call on timeout
+    - Return timeout error with elapsed time
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [ ] 6.3 Implement test mode support
+    - Check test mode environment variable
+    - Return mock responses when enabled
+    - Generate realistic token counts
+    - Log test mode usage
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [ ] 7. Implement retry logic and error handling
+  - [ ] 7.1 Implement exponential backoff retry
+    - Detect rate limit errors from providers
+    - Implement exponential backoff with configurable delays
+    - Retry up to 3 times
+    - Log retry attempts
+    - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+  - [ ] 7.2 Implement error mapping
+    - Map provider errors to internal error codes
+    - Create user-friendly error messages
+    - Preserve original error for logging
+    - _Requirements: All error scenarios_
+
+- [ ] 8. Implement usage tracking
+  - [ ] 8.1 Create usage tracker
+    - Define `UsageEvent` struct with all metrics
+    - Create `UsageTracker` with analytics client
+    - Implement local usage store for recent events
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [ ] 8.2 Implement usage event emission
+    - Emit usage event after each LLM call
+    - Include prompt path, model, tokens, calling service
+    - Send to analytics service asynchronously
+    - Handle analytics service unavailability gracefully
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [ ] 8.3 Implement usage stats aggregation
+    - Aggregate events by time range
+    - Group by calling service and model
+    - Calculate total requests and tokens
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+
+- [ ] 9. Implement gRPC server
+  - [ ] 9.1 Implement CallPrompt endpoint
+    - Extract request parameters
+    - Load prompt from cache
+    - Substitute variables
+    - Route to LLM provider
+    - Track usage
+    - Return response with token usage
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 9.2 Implement GetPromptMetadata endpoint
+    - Look up prompt in cache
+    - Return file size, last modified, required variables
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 9.3 Implement ListPrompts endpoint
+    - Return all loaded prompts
+    - Support directory filtering
+    - Include basic metadata
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 9.4 Implement GetUsageStats endpoint
+    - Query usage tracker for stats
+    - Support time range filtering
+    - Support calling service filtering
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+
+- [ ] 10. Implement logging infrastructure
+  - [ ] 10.1 Set up structured logging with zerolog
+    - Configure log level from environment
+    - Set up JSON log format
+    - Add timestamp and service name to all logs
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ] 10.2 Add logging to all operations
+    - Log prompt loading and reloading
+    - Log CallPrompt requests with metadata (no content)
+    - Log LLM API calls with response time and tokens
+    - Log errors with full context
+    - Never log prompt content or LLM responses
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 11. Implement configuration and initialization
+  - [ ] 11.1 Create configuration loader
+    - Load environment variables using godotenv
+    - Validate required configuration (API keys, prompts dir)
+    - Set defaults for optional values
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [ ] 11.2 Implement service initialization
+    - Initialize prompt loader and load all prompts
+    - Start file watcher
+    - Initialize LLM provider clients
+    - Initialize usage tracker
+    - Validate API keys
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 11.3 Create main application entry point
+    - Start gRPC server
+    - Implement graceful shutdown
+    - Add health check endpoint
+    - Log startup with prompt count
+    - _Requirements: All_
+
+- [ ] 12. Write unit tests
+  - Create tests for prompt loader with test files
+  - Create tests for variable substitution with various inputs
+  - Create tests for template parsing and variable extraction
+  - Create tests for OpenAI provider with mocked API
+  - Create tests for provider router with multiple providers
+  - Create tests for parameter validation
+  - Create tests for timeout handling
+  - Create tests for retry logic
+  - _Requirements: All_
+
+- [ ] 13. Write integration tests
+  - Create end-to-end tests for CallPrompt with real prompts
+  - Create tests for file watching and hot reload
+  - Create tests for usage tracking with mocked analytics service
+  - Create tests for test mode
+  - _Requirements: All_
+
+- [ ] 14. Create sample prompts and documentation
+  - [ ] 14.1 Create sample prompt files
+    - Create example prompts in various subdirectories
+    - Include prompts with different variable patterns
+    - Add frontmatter examples
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 14.2 Document prompt format and best practices
+    - Document variable syntax
+    - Document frontmatter options
+    - Provide examples of good prompts
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+
+- [ ] 15. Create deployment configuration
+  - [ ] 15.1 Create Dockerfile
+    - Multi-stage build with Go compilation
+    - Copy prompts directory
+    - Set up non-root user
+    - _Requirements: All_
+  - [ ] 15.2 Add to docker-compose for demo sandbox
+    - Define LLM gateway service with environment variables
+    - Mount prompts directory as volume
+    - Expose gRPC port
+    - _Requirements: All_
+  - [ ] 15.3 Create GitHub Actions workflow
+    - Add build and test steps
+    - Add Docker image build and push
+    - Add deployment steps
+    - _Requirements: All_

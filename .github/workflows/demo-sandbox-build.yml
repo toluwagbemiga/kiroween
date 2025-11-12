@@ -1,0 +1,62 @@
+name: Demo Sandbox Build
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'docker-compose.yml'
+      - 'demo/**'
+      - '.github/workflows/demo-sandbox-build.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate-compose:
+    name: Validate Docker Compose
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate docker-compose.yml
+        run: docker-compose config
+
+  test-sandbox:
+    name: Test Demo Sandbox
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create JWT keys
+        run: |
+          mkdir -p keys
+          openssl genrsa -out keys/jwt-private.pem 2048
+          openssl rsa -in keys/jwt-private.pem -pubout -out keys/jwt-public.pem
+      
+      - name: Start services
+        run: |
+          docker-compose up -d
+          sleep 30
+      
+      - name: Wait for services to be healthy
+        run: |
+          timeout 300 bash -c 'until docker-compose ps | grep -q "healthy"; do sleep 5; done'
+      
+      - name: Check service health
+        run: |
+          docker-compose ps
+          curl -f http://localhost:4242/health || exit 1
+          curl -f http://localhost:4000/health || exit 1
+      
+      - name: Run demo data script
+        run: |
+          docker-compose exec -T postgres psql -U haunted -d haunted -f /docker-entrypoint-initdb.d/init.sql
+      
+      - name: Show logs on failure
+        if: failure()
+        run: docker-compose logs
+      
+      - name: Cleanup
+        if: always()
+        run: docker-compose down -v

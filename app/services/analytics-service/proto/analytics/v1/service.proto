@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package analytics.v1;
+
+option go_package = "github.com/haunted-saas/analytics-service/proto/analytics/v1;analyticsv1";
+
+// AnalyticsService provides event tracking and user identification
+service AnalyticsService {
+  // TrackEvent tracks an analytics event
+  rpc TrackEvent(TrackEventRequest) returns (TrackEventResponse);
+  
+  // IdentifyUser identifies a user with properties
+  rpc IdentifyUser(IdentifyUserRequest) returns (IdentifyUserResponse);
+  
+  // GetEventCount returns event counts
+  rpc GetEventCount(GetEventCountRequest) returns (GetEventCountResponse);
+  
+  // GetUserCount returns unique user count
+  rpc GetUserCount(GetUserCountRequest) returns (GetUserCountResponse);
+  
+  // HealthCheck returns service health status
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message TrackEventRequest {
+  string event_name = 1;
+  string user_id = 2;  // Optional, empty for anonymous events
+  map<string, PropertyValue> properties = 3;
+  int64 timestamp = 4;  // Unix timestamp, optional
+}
+
+message PropertyValue {
+  oneof value {
+    string string_value = 1;
+    double number_value = 2;
+    bool bool_value = 3;
+  }
+}
+
+message TrackEventResponse {
+  bool success = 1;
+  string event_id = 2;
+}
+
+message IdentifyUserRequest {
+  string user_id = 1;
+  map<string, PropertyValue> properties = 2;
+}
+
+message IdentifyUserResponse {
+  bool success = 1;
+}
+
+message GetEventCountRequest {
+  string event_name = 1;  // Optional, empty for all events
+  int64 start_time = 2;
+  int64 end_time = 3;
+  string group_by = 4;  // "hour", "day", "week"
+}
+
+message GetEventCountResponse {
+  repeated EventCount counts = 1;
+}
+
+message EventCount {
+  string event_name = 1;
+  int64 timestamp = 2;
+  int64 count = 3;
+}
+
+message GetUserCountRequest {
+  int64 start_time = 1;
+  int64 end_time = 2;
+}
+
+message GetUserCountResponse {
+  int64 unique_users = 1;
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  string status = 1;
+}

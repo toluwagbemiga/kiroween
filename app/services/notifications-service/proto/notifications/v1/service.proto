@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package notifications.v1;
+
+option go_package = "github.com/haunted-saas/notifications-service/proto/notifications/v1;notificationsv1";
+
+// NotificationsService provides real-time messaging via Socket.IO
+service NotificationsService {
+  // SendToUser sends a message to a specific user
+  rpc SendToUser(SendToUserRequest) returns (SendToUserResponse);
+  
+  // SendToUsers sends a message to multiple users
+  rpc SendToUsers(SendToUsersRequest) returns (SendToUsersResponse);
+  
+  // BroadcastToRoom broadcasts a message to a room
+  rpc BroadcastToRoom(BroadcastToRoomRequest) returns (BroadcastToRoomResponse);
+  
+  // IsUserConnected checks if a user is connected
+  rpc IsUserConnected(IsUserConnectedRequest) returns (IsUserConnectedResponse);
+  
+  // GetConnectionStats returns connection statistics
+  rpc GetConnectionStats(GetConnectionStatsRequest) returns (GetConnectionStatsResponse);
+  
+  // DisconnectUser disconnects all connections for a user
+  rpc DisconnectUser(DisconnectUserRequest) returns (DisconnectUserResponse);
+}
+
+message SendToUserRequest {
+  string user_id = 1;
+  string event_type = 2;
+  string payload_json = 3;
+  string correlation_id = 4;
+}
+
+message SendToUserResponse {
+  bool delivered = 1;
+  int32 connection_count = 2;
+}
+
+message SendToUsersRequest {
+  repeated string user_ids = 1;
+  string event_type = 2;
+  string payload_json = 3;
+  string correlation_id = 4;
+}
+
+message SendToUsersResponse {
+  int32 total_users = 1;
+  int32 delivered_count = 2;
+  map<string, int32> connections_by_user = 3;
+}
+
+message BroadcastToRoomRequest {
+  string room_id = 1;
+  string event_type = 2;
+  string payload_json = 3;
+  string correlation_id = 4;
+  repeated string exclude_user_ids = 5;
+}
+
+message BroadcastToRoomResponse {
+  bool delivered = 1;
+  int32 recipient_count = 2;
+}
+
+message IsUserConnectedRequest {
+  string user_id = 1;
+}
+
+message IsUserConnectedResponse {
+  bool is_connected = 1;
+  int32 connection_count = 2;
+  repeated string socket_ids = 3;
+}
+
+message GetConnectionStatsRequest {
+  string team_id = 1; // Optional filter
+}
+
+message GetConnectionStatsResponse {
+  int32 total_connections = 1;
+  int32 websocket_connections = 2;
+  int32 polling_connections = 3;
+  map<string, int32> connections_by_team = 4;
+  map<string, int32> connections_by_transport = 5;
+}
+
+message DisconnectUserRequest {
+  string user_id = 1;
+  string reason = 2;
+}
+
+message DisconnectUserResponse {
+  int32 disconnected_count = 1;
+}

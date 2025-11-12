@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package llm.v1;
+
+option go_package = "github.com/haunted-saas/llm-gateway-service/proto/llm/v1;llmv1";
+
+// LLMGatewayService provides a unified interface for LLM operations
+service LLMGatewayService {
+  // CallPrompt executes a prompt with variables
+  rpc CallPrompt(CallPromptRequest) returns (CallPromptResponse);
+  
+  // GetPromptMetadata returns metadata for a prompt
+  rpc GetPromptMetadata(GetPromptMetadataRequest) returns (GetPromptMetadataResponse);
+  
+  // ListPrompts lists all available prompts
+  rpc ListPrompts(ListPromptsRequest) returns (ListPromptsResponse);
+  
+  // GetUsageStats returns usage statistics
+  rpc GetUsageStats(GetUsageStatsRequest) returns (GetUsageStatsResponse);
+}
+
+message CallPromptRequest {
+  string prompt_path = 1;
+  string variables_json = 2;
+  string provider = 3; // Optional: "openai", "anthropic"
+  string model = 4; // Optional: "gpt-4", "claude-3-opus"
+  LLMParameters parameters = 5; // Optional
+  int32 timeout_seconds = 6; // Optional
+  string calling_service = 7;
+  string correlation_id = 8;
+}
+
+message LLMParameters {
+  float temperature = 1;
+  int32 max_tokens = 2;
+  float top_p = 3;
+  float frequency_penalty = 4;
+  float presence_penalty = 5;
+}
+
+message CallPromptResponse {
+  string response_text = 1;
+  TokenUsage token_usage = 2;
+  string model_used = 3;
+  string request_id = 4;
+  int64 response_time_ms = 5;
+}
+
+message TokenUsage {
+  int32 prompt_tokens = 1;
+  int32 completion_tokens = 2;
+  int32 total_tokens = 3;
+}
+
+message GetPromptMetadataRequest {
+  string prompt_path = 1;
+}
+
+message GetPromptMetadataResponse {
+  string prompt_path = 1;
+  int64 file_size_bytes = 2;
+  string last_modified = 3;
+  repeated string required_variables = 4;
+}
+
+message ListPromptsRequest {
+  string directory_filter = 1; // Optional: filter by subdirectory
+}
+
+message ListPromptsResponse {
+  repeated PromptInfo prompts = 1;
+}
+
+message PromptInfo {
+  string path = 1;
+  int64 size_bytes = 2;
+  string last_modified = 3;
+}
+
+message GetUsageStatsRequest {
+  string time_range = 1; // "hour", "day", "week"
+  string calling_service = 2; // Optional filter
+}
+
+message GetUsageStatsResponse {
+  int64 total_requests = 1;
+  int64 total_tokens = 2;
+  map<string, int64> requests_by_service = 3;
+  map<string, int64> tokens_by_model = 4;
+}

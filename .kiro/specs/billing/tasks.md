@@ -1,0 +1,204 @@
+# Implementation Plan: Billing Service
+
+- [ ] 1. Set up project structure and dependencies
+  - Create Go module with `go mod init`
+  - Add dependencies: grpc, stripe-go, pgx, gorm, zerolog, godotenv
+  - Create directory structure: `/cmd`, `/internal`, `/proto`, `/migrations`
+  - _Requirements: All_
+
+- [ ] 2. Define gRPC service contracts
+  - [ ] 2.1 Create protobuf definitions for billing service
+    - Write `billing.proto` with all service methods and messages
+    - Define Plan, Subscription, and related message types
+    - Include validation rules in proto comments
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1_
+  - [ ] 2.2 Generate Go code from protobuf
+    - Run `protoc` to generate gRPC server and client code
+    - Verify generated code compiles without errors
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1_
+
+- [ ] 3. Implement database layer
+  - [ ] 3.1 Create database schema and migrations
+    - Write SQL migration for `plans` table with constraints
+    - Write SQL migration for `subscriptions` table with foreign keys
+    - Write SQL migration for `webhook_events` table
+    - Create indexes for performance optimization
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.2, 7.3_
+  - [ ] 3.2 Implement GORM models
+    - Create `Plan` struct with GORM tags
+    - Create `Subscription` struct with relationships
+    - Create `WebhookEvent` struct for idempotency tracking
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.2, 7.3_
+  - [ ] 3.3 Implement repository layer
+    - Create `PlanRepository` with CRUD operations
+    - Create `SubscriptionRepository` with team lookup methods
+    - Create `WebhookEventRepository` with idempotency checks
+    - Implement transaction support for atomic operations
+    - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.4, 7.3_
+
+- [ ] 4. Implement Stripe client wrapper
+  - [ ] 4.1 Create Stripe client initialization
+    - Initialize Stripe client with API key from environment
+    - Implement API key validation at startup
+    - Add error handling for missing credentials
+    - _Requirements: 9.1, 9.2, 9.5_
+  - [ ] 4.2 Implement product and price management
+    - Create `CreateProduct` method for Stripe products
+    - Create `CreatePrice` method for Stripe prices
+    - Create `UpdateProduct` method for plan modifications
+    - _Requirements: 1.1, 1.3_
+  - [ ] 4.3 Implement checkout session operations
+    - Create `CreateCheckoutSession` method with success/cancel URLs
+    - Configure session with customer metadata (team_id)
+    - Set subscription mode and payment method types
+    - _Requirements: 2.1, 2.2, 2.5_
+  - [ ] 4.4 Implement subscription management
+    - Create `GetSubscription` method to fetch from Stripe
+    - Create `CancelSubscription` method with end-of-period cancellation
+    - Create `UpdateSubscription` method for plan changes with proration
+    - _Requirements: 3.1, 3.5, 4.1, 4.2, 5.1, 5.2_
+  - [ ] 4.5 Implement customer management
+    - Create `CreateCustomer` method with team metadata
+    - Create `GetCustomer` method for customer lookup
+    - _Requirements: 2.1, 6.2_
+
+- [ ] 5. Implement core billing service logic
+  - [ ] 5.1 Implement plan management operations
+    - Create `CreatePlan` method: validate input, create in Stripe, save to database
+    - Create `GetPlan` method with database lookup
+    - Create `ListPlans` method with active filter
+    - Create `UpdatePlan` method: update Stripe and database
+    - Create `DeactivatePlan` method: mark inactive, preserve subscriptions
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 5.2 Implement subscription creation flow
+    - Create `CreateCheckoutSession` method: validate plan, create customer if needed, create session
+    - Return checkout URL and session ID
+    - Store pending session in database
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [ ] 5.3 Implement subscription retrieval
+    - Create `GetSubscription` method with team ID lookup
+    - Return subscription with plan details
+    - Handle case when no subscription exists
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 5.4 Implement subscription cancellation
+    - Create `CancelSubscription` method with authorization check
+    - Cancel in Stripe at period end
+    - Update database with cancellation details
+    - Return cancellation date
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [ ] 5.5 Implement subscription updates
+    - Create `UpdateSubscription` method with plan validation
+    - Calculate proration in Stripe
+    - Update database with new plan
+    - Return updated subscription and next billing amount
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 6. Implement webhook handling
+  - [ ] 6.1 Create HTTP webhook endpoint
+    - Set up HTTP server on separate port
+    - Create POST `/webhooks/stripe` endpoint
+    - Implement request body reading and parsing
+    - _Requirements: 6.1, 6.5_
+  - [ ] 6.2 Implement webhook signature verification
+    - Extract Stripe signature from headers
+    - Verify signature using webhook secret
+    - Reject requests with invalid signatures
+    - _Requirements: 6.1_
+  - [ ] 6.3 Implement webhook event routing
+    - Parse Stripe event type
+    - Route to appropriate handler based on event type
+    - Support: checkout.session.completed, customer.subscription.created/updated/deleted
+    - _Requirements: 6.2, 6.3, 6.4_
+  - [ ] 6.4 Implement webhook event handlers
+    - Create handler for `checkout.session.completed`: create/update subscription
+    - Create handler for `customer.subscription.deleted`: mark as cancelled
+    - Create handler for `customer.subscription.updated`: sync subscription details
+    - _Requirements: 6.2, 6.3, 6.4_
+  - [ ] 6.5 Implement webhook idempotency and error handling
+    - Check webhook event ID before processing
+    - Store webhook events in database
+    - Implement dead letter queue for failed events
+    - Always return HTTP 200 to prevent retries
+    - _Requirements: 6.5, 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 7. Implement gRPC server
+  - [ ] 7.1 Create gRPC server implementation
+    - Implement all gRPC service methods
+    - Wire up billing service logic
+    - Add request validation
+    - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [ ] 7.2 Implement error handling and mapping
+    - Map internal errors to gRPC status codes
+    - Create user-friendly error messages
+    - Log errors with context
+    - _Requirements: All error scenarios_
+  - [ ] 7.3 Add request logging and correlation IDs
+    - Extract correlation IDs from metadata
+    - Log all incoming requests
+    - Log request duration and status
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+
+- [ ] 8. Implement configuration and initialization
+  - [ ] 8.1 Create configuration loader
+    - Load environment variables using godotenv
+    - Validate required configuration
+    - Set defaults for optional values
+    - _Requirements: 9.1, 9.2, 9.5_
+  - [ ] 8.2 Implement service initialization
+    - Initialize database connection with retry logic
+    - Run database migrations
+    - Initialize Stripe client
+    - Initialize repositories and services
+    - _Requirements: 9.1, 9.2, 9.5_
+  - [ ] 8.3 Create main application entry point
+    - Start gRPC server in goroutine
+    - Start HTTP webhook server in goroutine
+    - Implement graceful shutdown
+    - Add health check endpoint
+    - _Requirements: All_
+
+- [ ] 9. Implement logging infrastructure
+  - [ ] 9.1 Set up structured logging with zerolog
+    - Configure log level from environment
+    - Set up JSON log format
+    - Add timestamp and service name to all logs
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [ ] 9.2 Add logging to all operations
+    - Log plan creation, updates, and deactivation
+    - Log subscription lifecycle events
+    - Log webhook processing
+    - Log errors with full context
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+
+- [ ] 10. Write unit tests
+  - Create table-driven tests for plan repository operations
+  - Create tests for subscription repository with test database
+  - Create tests for Stripe client wrapper with mocked API
+  - Create tests for billing service logic with mocked dependencies
+  - Create tests for webhook signature verification
+  - Create tests for webhook event handlers
+  - _Requirements: All_
+
+- [ ] 11. Write integration tests
+  - Create end-to-end tests for gRPC endpoints
+  - Create tests for webhook flow with test Stripe events
+  - Create tests for database transactions and rollbacks
+  - Use testcontainers for PostgreSQL
+  - _Requirements: All_
+
+- [ ] 12. Create deployment configuration
+  - [ ] 12.1 Create Dockerfile
+    - Multi-stage build with Go compilation
+    - Copy migrations and configuration
+    - Set up non-root user
+    - _Requirements: All_
+  - [ ] 12.2 Add to docker-compose for demo sandbox
+    - Define billing service with environment variables
+    - Link to PostgreSQL and other services
+    - Expose gRPC and HTTP ports
+    - _Requirements: All_
+  - [ ] 12.3 Create GitHub Actions workflow
+    - Add build and test steps
+    - Add Docker image build and push
+    - Add deployment steps
+    - _Requirements: All_

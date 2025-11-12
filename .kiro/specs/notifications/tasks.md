@@ -1,0 +1,281 @@
+# Implementation Plan: Notifications Service
+
+- [ ] 1. Set up project structure and dependencies
+  - Create Go module with `go mod init`
+  - Add dependencies: grpc, go-socket.io, golang-jwt, zerolog, godotenv
+  - Create directory structure: `/cmd`, `/internal`, `/proto`
+  - _Requirements: All_
+
+- [ ] 2. Define gRPC service contracts
+  - [ ] 2.1 Create protobuf definitions for notifications service
+    - Write `notifications.proto` with all service methods
+    - Define message types for SendToUser, SendToUsers, BroadcastToRoom
+    - Define IsUserConnected and GetConnectionStats messages
+    - _Requirements: 4.1, 4.2, 5.1, 5.2, 6.1, 6.2, 7.1, 7.2, 12.1, 12.2_
+  - [ ] 2.2 Generate Go code from protobuf
+    - Run `protoc` to generate gRPC server and client code
+    - Verify generated code compiles without errors
+    - _Requirements: 4.1, 4.2, 5.1, 5.2, 6.1, 6.2, 7.1, 7.2, 12.1, 12.2_
+
+- [ ] 3. Implement JWT authentication middleware
+  - [ ] 3.1 Create JWT claims structure
+    - Define `JWTClaims` struct with user_id, team_id, email
+    - Include standard JWT claims (exp, iat, iss)
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 11.1, 11.2, 11.3, 11.4, 11.5_
+  - [ ] 3.2 Implement token extraction
+    - Extract JWT from Socket.IO handshake query parameters
+    - Extract JWT from handshake auth object
+    - Support both connection methods
+    - _Requirements: 2.1_
+  - [ ] 3.3 Implement token validation
+    - Parse JWT string
+    - Validate signature using shared secret
+    - Check expiration time
+    - Extract and return claims
+    - _Requirements: 2.2, 2.3_
+  - [ ] 3.4 Implement authentication middleware
+    - Create `AuthMiddleware` with Authenticate method
+    - Reject connections with invalid tokens
+    - Return clear error messages
+    - Log authentication failures
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 10.1_
+
+- [ ] 4. Implement connection manager
+  - [ ] 4.1 Create connection data structures
+    - Define `Connection` struct with socket_id, user_id, team_id, transport, timestamps
+    - Define `ConnectionManager` with thread-safe maps
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ] 4.2 Implement connection tracking
+    - Implement `AddConnection` method with mutex locking
+    - Implement `RemoveConnection` method with cleanup
+    - Maintain user-to-sockets mapping
+    - Track connection metadata
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 4.3 Implement connection queries
+    - Implement `GetUserConnections` to find all user sockets
+    - Implement `IsUserConnected` to check connection status
+    - Implement `GetConnectionCount` for total connections
+    - Implement `GetConnectionsByTransport` for stats
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 12.1, 12.2, 12.3, 12.4, 12.5_
+  - [ ] 4.4 Implement connection lifecycle management
+    - Update last seen timestamp on activity
+    - Clean up stale connections
+    - Handle reconnection scenarios
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [ ] 5. Implement room manager
+  - [ ] 5.1 Create room data structures
+    - Define `Room` struct with id, type, members, timestamps
+    - Define `RoomManager` with thread-safe maps
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 5.2 Implement room operations
+    - Implement `JoinRoom` method to add socket to room
+    - Implement `LeaveRoom` method to remove socket from room
+    - Implement `LeaveAllRooms` for cleanup on disconnect
+    - Track room membership bidirectionally
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 5.3 Implement room queries
+    - Implement `GetRoomMembers` to list all sockets in room
+    - Implement `GetRoomCount` for stats
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
+  - [ ] 5.4 Implement room message emission
+    - Implement `EmitToRoom` to send message to all room members
+    - Implement `EmitToRoomExcept` to exclude specific sockets
+    - Use Socket.IO room broadcasting
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 6. Implement Socket.IO server
+  - [ ] 6.1 Initialize Socket.IO server
+    - Configure WebSocket and polling transports
+    - Set ping timeout and interval
+    - Configure CORS with allowed origins
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 6.2 Implement connection handler
+    - Register OnConnect event handler
+    - Authenticate connection using JWT middleware
+    - Create Connection object
+    - Add to connection manager
+    - Join user and team rooms automatically
+    - Emit connection_ready event to client
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 8.1, 8.2, 8.3, 8.4, 8.5_
+  - [ ] 6.3 Implement disconnection handler
+    - Register OnDisconnect event handler
+    - Remove from all rooms
+    - Remove from connection manager
+    - Log disconnection with reason
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 10.2_
+  - [ ] 6.4 Implement error handler
+    - Register OnError event handler
+    - Log errors with socket ID and context
+    - Clean up connection state if needed
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [ ] 6.5 Start Socket.IO server
+    - Start HTTP server for Socket.IO
+    - Listen on configured port
+    - Log server startup
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+
+- [ ] 7. Implement message router
+  - [ ] 7.1 Create message router
+    - Initialize with connection manager and room manager
+    - Store reference to Socket.IO server
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 5.1, 5.2, 5.3, 5.4, 5.5, 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 7.2 Implement SendToUser method
+    - Look up user's socket connections
+    - Emit to user's room using Socket.IO
+    - Log delivery with connection count
+    - Return delivery status
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [ ] 7.3 Implement SendToUsers method
+    - Iterate through user IDs
+    - Send to each user in parallel using goroutines
+    - Collect results
+    - Return aggregated delivery status
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 7.4 Implement BroadcastToRoom method
+    - Validate event type is non-empty
+    - Get room members
+    - Filter excluded user IDs if provided
+    - Emit to room using Socket.IO
+    - Log broadcast with recipient count
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 13.1, 13.2, 13.3, 13.4, 13.5_
+
+- [ ] 8. Implement gRPC server
+  - [ ] 8.1 Implement SendToUser endpoint
+    - Parse request parameters
+    - Validate user ID and event type
+    - Call message router
+    - Return delivery status
+    - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
+  - [ ] 8.2 Implement SendToUsers endpoint
+    - Parse user IDs list
+    - Validate event type
+    - Call message router
+    - Return batch delivery status
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 8.3 Implement BroadcastToRoom endpoint
+    - Parse room ID and event type
+    - Parse optional exclude list
+    - Call message router
+    - Return broadcast status
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+  - [ ] 8.4 Implement IsUserConnected endpoint
+    - Query connection manager
+    - Return connection status and count
+    - Return socket IDs
+    - Respond within 100ms
+    - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+  - [ ] 8.5 Implement GetConnectionStats endpoint
+    - Query connection manager and room manager
+    - Aggregate stats by transport and team
+    - Support optional team filter
+    - Return comprehensive stats
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ] 8.6 Implement DisconnectUser endpoint
+    - Find all user connections
+    - Disconnect each socket with reason
+    - Return disconnected count
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [ ] 9. Implement stats collector
+  - [ ] 9.1 Create stats collector
+    - Define `Metrics` struct with counters
+    - Initialize with connection and room managers
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ] 9.2 Implement metrics tracking
+    - Track total connections and disconnections
+    - Track messages delivered by event type
+    - Track connections by team
+    - Use mutex for thread-safe updates
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+  - [ ] 9.3 Implement stats aggregation
+    - Aggregate current connection stats
+    - Group by transport type
+    - Group by team
+    - Calculate uptime
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 10. Implement logging infrastructure
+  - [ ] 10.1 Set up structured logging with zerolog
+    - Configure log level from environment
+    - Set up JSON log format
+    - Add timestamp and service name to all logs
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+  - [ ] 10.2 Add logging to all operations
+    - Log connections with user ID, team ID, transport
+    - Log disconnections with reason and duration
+    - Log message deliveries with event type and recipient count
+    - Log authentication failures with IP
+    - Log errors with full context
+    - Include correlation IDs from gRPC metadata
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+
+- [ ] 11. Implement configuration and initialization
+  - [ ] 11.1 Create configuration loader
+    - Load environment variables using godotenv
+    - Validate required configuration (JWT secret, ports)
+    - Set defaults for optional values
+    - Parse CORS allowed origins
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 14.1, 14.2, 14.3, 14.4, 14.5_
+  - [ ] 11.2 Implement service initialization
+    - Initialize connection manager
+    - Initialize room manager
+    - Initialize message router
+    - Initialize stats collector
+    - Initialize Socket.IO server
+    - Validate JWT secret
+    - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+  - [ ] 11.3 Create main application entry point
+    - Start Socket.IO server in goroutine
+    - Start gRPC server in goroutine
+    - Implement graceful shutdown
+    - Add health check endpoint
+    - Log startup completion
+    - _Requirements: All_
+
+- [ ] 12. Implement connection limits and cleanup
+  - [ ] 12.1 Implement connection limit enforcement
+    - Check connection count before accepting new connections
+    - Reject connections when limit reached
+    - Log capacity warnings
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
+  - [ ] 12.2 Implement stale connection cleanup
+    - Periodically check for stale connections
+    - Disconnect connections exceeding timeout
+    - Clean up resources
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [ ] 13. Write unit tests
+  - Create tests for JWT authentication with valid/invalid tokens
+  - Create tests for connection manager operations
+  - Create tests for room manager operations
+  - Create tests for message router with mocked Socket.IO
+  - Create tests for stats collector
+  - Create tests for concurrent operations
+  - _Requirements: All_
+
+- [ ] 14. Write integration tests
+  - Create end-to-end tests with real Socket.IO client
+  - Test WebSocket connection flow
+  - Test polling fallback
+  - Test authentication and room joining
+  - Test message delivery via gRPC
+  - Test reconnection handling
+  - _Requirements: All_
+
+- [ ] 15. Create deployment configuration
+  - [ ] 15.1 Create Dockerfile
+    - Multi-stage build with Go compilation
+    - Set up non-root user
+    - Expose Socket.IO and gRPC ports
+    - _Requirements: All_
+  - [ ] 15.2 Add to docker-compose for demo sandbox
+    - Define notifications service with environment variables
+    - Expose ports for Socket.IO and gRPC
+    - Link to other services
+    - _Requirements: All_
+  - [ ] 15.3 Create GitHub Actions workflow
+    - Add build and test steps
+    - Add Docker image build and push
+    - Add deployment steps
+    - _Requirements: All_

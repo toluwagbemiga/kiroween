@@ -1,0 +1,34 @@
+# gqlgen configuration file
+schema:
+  - schema.graphqls
+
+exec:
+  filename: internal/generated/exec.go
+  package: generated
+
+model:
+  filename: internal/generated/models.go
+  package: generated
+
+resolver:
+  layout: follow-schema
+  dir: internal/resolvers
+  package: resolvers
+  filename_template: "{name}.resolvers.go"
+
+# Custom scalar types
+models:
+  JSON:
+    model: github.com/99designs/gqlgen/graphql.Map
+  Time:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
+
+# Skip generation for types we'll implement manually
+autobind:
+  - github.com/haunted-saas/graphql-api-gateway/internal/models
+
+# Directives
+directives:
+  auth:
+    skip_runtime: true

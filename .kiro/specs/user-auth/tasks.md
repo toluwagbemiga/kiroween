@@ -1,0 +1,234 @@
+# Implementation Plan
+
+- [ ] 1. Set up project structure and core dependencies
+  - Create monorepo directory structure: `/app/services/user-auth-service`
+  - Initialize Go module with `go.mod` and configure dependencies (gRPC, GORM, pgx, Redis client, JWT, bcrypt, zap, viper)
+  - Set up `.env.example` file with configuration template
+  - Create `cmd/server/main.go` entry point
+  - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1_
+
+- [ ] 2. Define gRPC service contracts
+  - Create `proto/userauth/v1/service.proto` with all RPC method definitions
+  - Define message types for Register, Login, Logout, ValidateToken, RefreshSession
+  - Define message types for RequestPasswordReset, ResetPassword
+  - Define message types for CreateRole, UpdateRole, DeleteRole, AssignRoleToUser, RevokeRoleFromUser
+  - Define message types for CheckPermission, GetUserPermissions
+  - Generate Go code from proto files using `protoc`
+  - _Requirements: 1.1, 2.1, 3.1, 4.5, 5.5, 6.3, 7.1_
+
+- [ ] 3. Implement domain models and database schema
+  - [ ] 3.1 Create domain entities
+    - Write `internal/domain/user.go` with User struct and GORM tags
+    - Write `internal/domain/role.go` with Role struct and many-to-many relationship
+    - Write `internal/domain/permission.go` with Permission struct
+    - Write `internal/domain/session.go` for Redis session model
+    - _Requirements: 1.1, 2.1, 4.1, 4.2, 4.3_
+  - [ ] 3.2 Create database migrations
+    - Write SQL migration for users table with indexes
+    - Write SQL migration for roles and permissions tables
+    - Write SQL migration for user_roles and role_permissions junction tables
+    - Create migration runner in `internal/database/migrations.go`
+    - _Requirements: 1.1, 4.1, 4.2_
+  - [ ] 3.3 Implement database connection
+    - Write `internal/database/postgres.go` with GORM connection setup
+    - Write `internal/database/redis.go` with Redis client initialization
+    - Add connection health check methods
+    - _Requirements: 1.1, 2.3, 3.3, 5.3_
+
+- [ ] 4. Implement repository layer
+  - [ ] 4.1 Create UserRepository
+    - Write `internal/repository/user_repository.go` implementing Create, FindByEmail, FindByID, Update
+    - Implement GetUserRoles, AssignRole, RevokeRole methods
+    - Add proper error handling and context support
+    - _Requirements: 1.1, 1.2, 2.1, 4.1, 4.3_
+  - [ ] 4.2 Create RoleRepository
+    - Write `internal/repository/role_repository.go` implementing Create, FindByID, FindByName, Update, Delete
+    - Implement GetRolePermissions, AssignPermission methods
+    - Add protection for system roles in Delete method
+    - _Requirements: 4.1, 4.2, 4.5_
+  - [ ] 4.3 Create SessionRepository
+    - Write `internal/repository/session_repository.go` for Redis operations
+    - Implement Create, Get, Delete, DeleteAllForUser methods
+    - Implement ExtendExpiration, IsRevoked, RevokeToken methods
+    - Use Redis Hash for session storage with proper TTL
+    - _Requirements: 2.3, 3.3, 3.5, 4.4, 6.1, 6.2, 6.5, 7.3_
+  - [ ] 4.4 Create PermissionCacheRepository
+    - Write `internal/repository/permission_cache_repository.go` for Redis caching
+    - Implement GetUserPermissions, SetUserPermissions, InvalidateUserPermissions
+    - Use Redis Set with 5-minute TTL
+    - _Requirements: 5.3_
+
+- [ ] 5. Implement token management
+  - [ ] 5.1 Create JWT key pair
+    - Generate RSA private/public key pair for RS256 signing
+    - Store keys in `keys/` directory
+    - Add key loading logic in configuration
+    - _Requirements: 2.1, 2.4, 3.4_
+  - [ ] 5.2 Implement TokenManager
+    - Write `internal/auth/token_manager.go` with GenerateToken method
+    - Implement ValidateToken with RS256 signature verification
+    - Implement ExtractClaims method
+    - Include user_id, email, session_id, roles, permissions in JWT claims
+    - Add JTI (JWT ID) for token revocation support
+    - _Requirements: 2.1, 2.4, 3.1, 3.4, 6.2_
+
+- [ ] 6. Implement rate limiting
+  - Write `internal/auth/rate_limiter.go` with RecordFailedAttempt, IsLocked, ResetAttempts
+  - Use Redis counter with 15-minute TTL for tracking attempts
+  - Implement 5-attempt threshold with 30-minute lockout
+  - Update User entity's IsLocked and LockedUntil fields on lockout
+  - _Requirements: 2.5_
+
+- [ ] 7. Implement authentication service
+  - [ ] 7.1 Create AuthService interface and implementation
+    - Write `internal/service/auth_service.go` with Register method
+    - Implement email validation using RFC 5322 regex
+    - Implement password hashing with bcrypt cost factor 12
+    - Assign default "member" role on registration
+    - Return error for duplicate email addresses
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
+  - [ ] 7.2 Implement Login method
+    - Add Login method to AuthService
+    - Verify credentials with constant-time comparison
+    - Check rate limiting and account lock status
+    - Generate JWT with user claims on successful login
+    - Create session in Redis with 24-hour expiration
+    - Record failed attempts and trigger lockout if threshold exceeded
+    - Return generic error message for invalid credentials
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [ ] 7.3 Implement token validation
+    - Add ValidateToken method to AuthService
+    - Verify JWT signature and expiration
+    - Check if token is in revocation list
+    - Extend session expiration on successful validation
+    - Return appropriate errors for expired or revoked tokens
+    - _Requirements: 3.1, 3.2, 3.3, 3.5_
+  - [ ] 7.4 Implement logout functionality
+    - Add Logout method to AuthService
+    - Remove session from Redis
+    - Add JWT to revocation list with original expiration
+    - Add LogoutAllDevices method to remove all user sessions
+    - _Requirements: 6.1, 6.2, 6.4, 6.5_
+  - [ ] 7.5 Implement password reset flow
+    - Add RequestPasswordReset method to generate secure token
+    - Hash reset token before storing in Redis with 1-hour TTL
+    - Add ResetPassword method to validate token and update password
+    - Invalidate all user sessions on password reset
+    - Remove reset token from Redis after use
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
+
+- [ ] 8. Implement RBAC service
+  - [ ] 8.1 Create RBACService interface and implementation
+    - Write `internal/service/rbac_service.go` with CreateRole method
+    - Implement UpdateRole and DeleteRole methods
+    - Add protection to prevent deletion of system roles
+    - _Requirements: 4.2, 4.5_
+  - [ ] 8.2 Implement role assignment
+    - Add AssignRoleToUser method to RBACService
+    - Add RevokeRoleFromUser method
+    - Invalidate all user sessions when roles are modified
+    - Support multiple role assignments per user
+    - _Requirements: 4.1, 4.3, 4.4, 4.5_
+  - [ ] 8.3 Implement permission checking
+    - Add CheckPermission method to RBACService
+    - Aggregate permissions from all user roles
+    - Check permission cache first, query database if cache miss
+    - Cache permission results in Redis for 5 minutes
+    - Return authorization error for invalid/expired sessions
+    - Add GetUserPermissions method to retrieve all user permissions
+    - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
+
+- [ ] 9. Implement gRPC handlers
+  - [ ] 9.1 Create authentication handlers
+    - Write `internal/handler/auth_handler.go` implementing Register RPC
+    - Implement Login RPC with IP address extraction
+    - Implement Logout RPC
+    - Implement ValidateToken RPC
+    - Implement RefreshSession RPC
+    - Add request validation and error mapping to gRPC codes
+    - _Requirements: 1.1, 2.1, 3.1, 6.1_
+  - [ ] 9.2 Create password management handlers
+    - Add RequestPasswordReset RPC handler
+    - Add ResetPassword RPC handler
+    - _Requirements: 7.1, 7.2_
+  - [ ] 9.3 Create RBAC handlers
+    - Write `internal/handler/rbac_handler.go` implementing CreateRole RPC
+    - Implement UpdateRole, DeleteRole RPCs
+    - Implement AssignRoleToUser, RevokeRoleFromUser RPCs
+    - Implement CheckPermission RPC
+    - Implement GetUserPermissions RPC
+    - _Requirements: 4.5, 5.5_
+
+- [ ] 10. Implement error handling
+  - Write `internal/errors/errors.go` with ServiceError type and error codes
+  - Define error codes: INVALID_CREDENTIALS, USER_NOT_FOUND, EMAIL_ALREADY_EXISTS, INVALID_TOKEN, EXPIRED_TOKEN, REVOKED_TOKEN, ACCOUNT_LOCKED, PERMISSION_DENIED, INVALID_INPUT, ROLE_NOT_FOUND, SYSTEM_ROLE_PROTECTED, INTERNAL_ERROR
+  - Write `internal/errors/grpc_mapper.go` with MapToGRPCError function
+  - Map service errors to appropriate gRPC status codes
+  - _Requirements: 1.2, 2.2, 3.2, 4.1, 5.4_
+
+- [ ] 11. Implement logging and observability
+  - [ ] 11.1 Set up structured logging
+    - Write `internal/logging/logger.go` with zap logger initialization
+    - Configure JSON output format for structured logs
+    - Add correlation ID middleware for request tracing
+    - _Requirements: 8.3, 8.4_
+  - [ ] 11.2 Implement audit event logging
+    - Write `internal/logging/audit.go` with event emission functions
+    - Log events: registration, login_success, login_failure, logout, password_reset_requested, password_reset_completed, role_assigned, role_revoked
+    - Include event type, user ID, timestamp, IP address in logs
+    - Ensure no sensitive data (passwords, tokens) in logs
+    - _Requirements: 8.1, 8.2, 8.5_
+  - [ ] 11.3 Add analytics service integration
+    - Write `internal/analytics/client.go` for analytics service gRPC client
+    - Emit AuthEvent messages to analytics service for all authentication events
+    - Include metadata: event_type, user_id, email, ip_address, timestamp, success, error_reason
+    - _Requirements: 8.1_
+
+- [ ] 12. Implement configuration management
+  - Write `internal/config/config.go` with Config struct
+  - Use Viper to load configuration from environment variables and config files
+  - Define configuration sections: Server, Database, Redis, JWT, Security
+  - Add validation for required configuration values
+  - _Requirements: 1.1, 2.3, 3.4, 5.3_
+
+- [ ] 13. Create database seed data
+  - Write `internal/database/seed.go` to create default roles and permissions
+  - Create system roles: "admin", "member", "viewer"
+  - Create default permissions: "users:read", "users:write", "users:delete", "roles:read", "roles:write", "permissions:read"
+  - Assign permissions to default roles
+  - Mark default roles as system roles (is_system = true)
+  - _Requirements: 1.4, 4.2_
+
+- [ ] 14. Implement gRPC server setup
+  - Write `cmd/server/main.go` to initialize all components
+  - Set up gRPC server with TLS support
+  - Register UserAuthService implementation
+  - Add graceful shutdown handling
+  - Implement health check endpoint
+  - _Requirements: 1.1, 2.1, 3.1, 4.5, 5.5, 6.3_
+
+- [ ] 15. Create Docker configuration
+  - Write `Dockerfile` with multi-stage build
+  - Use golang:1.21-alpine as builder
+  - Copy JWT keys to final image
+  - Expose gRPC port 50051
+  - Write `docker-compose.yml` for local development
+  - Include PostgreSQL and Redis services in docker-compose
+  - Add environment variable configuration
+  - _Requirements: 1.1_
+
+- [ ] 16. Add integration with demo sandbox
+  - Update monorepo `docker-compose.yml` to include user-auth-service
+  - Configure service networking for gRPC communication
+  - Add health check configuration
+  - _Requirements: 1.1_
+
+- [ ] 17. Write integration tests
+  - Create `test/integration/auth_test.go` for authentication flow tests
+  - Test registration → login → token validation flow
+  - Test failed login → account lock → unlock flow
+  - Test password reset flow
+  - Create `test/integration/rbac_test.go` for RBAC tests
+  - Test role assignment → permission check flow
+  - Use testcontainers for PostgreSQL and Redis
+  - _Requirements: 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1_

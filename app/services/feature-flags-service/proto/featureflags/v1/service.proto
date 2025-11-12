@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package featureflags.v1;
+
+option go_package = "github.com/haunted-saas/feature-flags-service/proto/featureflags/v1;featureflagsv1";
+
+// FeatureFlagsService provides high-speed feature flag evaluation
+service FeatureFlagsService {
+  // IsFeatureEnabled checks if a feature is enabled for the given context
+  rpc IsFeatureEnabled(IsFeatureEnabledRequest) returns (IsFeatureEnabledResponse);
+  
+  // GetFeatureVariant gets the variant for a feature flag
+  rpc GetFeatureVariant(GetFeatureVariantRequest) returns (GetFeatureVariantResponse);
+  
+  // GetUserFeatures gets all enabled features for a user
+  rpc GetUserFeatures(GetUserFeaturesRequest) returns (GetUserFeaturesResponse);
+  
+  // ListFeatures lists all available features (for debugging/admin)
+  rpc ListFeatures(ListFeaturesRequest) returns (ListFeaturesResponse);
+  
+  // GetServiceHealth returns the health status of the service
+  rpc GetServiceHealth(GetServiceHealthRequest) returns (GetServiceHealthResponse);
+}
+
+message IsFeatureEnabledRequest {
+  string feature_name = 1;
+  string user_id = 2;        // Optional
+  string team_id = 3;        // Optional
+  string properties_json = 4; // Optional: JSON object with additional context
+}
+
+message IsFeatureEnabledResponse {
+  bool enabled = 1;
+}
+
+message GetFeatureVariantRequest {
+  string feature_name = 1;
+  string user_id = 2;        // Optional
+  string team_id = 3;        // Optional
+  string properties_json = 4; // Optional: JSON object with additional context
+}
+
+message GetFeatureVariantResponse {
+  bool enabled = 1;
+  string variant_name = 2;
+  string payload_json = 3;   // JSON payload for the variant
+}
+
+message ListFeaturesRequest {
+  // No parameters - returns all features
+}
+
+message ListFeaturesResponse {
+  repeated Feature features = 1;
+}
+
+message Feature {
+  string name = 1;
+  string description = 2;
+  bool enabled = 3;
+  string created_at = 4;
+}
+
+message GetUserFeaturesRequest {
+  string user_id = 1;
+  string team_id = 2;        // Optional
+  string properties_json = 3; // Optional: JSON object with additional context
+}
+
+message GetUserFeaturesResponse {
+  repeated string enabled_features = 1;
+}
+
+message GetServiceHealthRequest {
+  // No parameters
+}
+
+message GetServiceHealthResponse {
+  string status = 1;   // "healthy", "not_ready", "error"
+  bool is_ready = 2;   // True if Unleash client is ready
+}

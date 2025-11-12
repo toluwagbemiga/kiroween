@@ -1,0 +1,12 @@
+node_modules
+.docusaurus
+.cache-loader
+build
+.git
+.gitignore
+README.md
+*.md
+.env*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
