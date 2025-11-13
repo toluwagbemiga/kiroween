@@ -278,7 +278,7 @@ func (r *mutationResolver) CallPrompt(ctx context.Context, name string, variable
 	}, nil
 }
 
-func (r *mutationResolver) CallLLM(ctx context.Context, input generated.LLMCallInput) (*generated.LLMResponse, error) {
+func (r *mutationResolver) CallLlm(ctx context.Context, input generated.LLMCallInput) (*generated.LLMResponse, error) {
 	// CallLLM RPC doesn't exist in proto - return not implemented
 	return nil, errors.NewBadRequestError("CallLLM not implemented - proto RPC missing")
 }
@@ -322,9 +322,6 @@ func (r *mutationResolver) UpdateNotificationPreferences(ctx context.Context, in
 func (r *mutationResolver) MarkNotificationRead(ctx context.Context, notificationID string) (bool, error) {
 	// MarkAsRead RPC doesn't exist in proto yet
 	return false, errors.NewBadRequestError("MarkNotificationRead not implemented - proto RPC missing")
-}
-
-	return true, nil
 }
 
 // ============================================================================

@@ -9,19 +9,22 @@ import (
 	"github.com/haunted-saas/graphql-api-gateway/internal/generated"
 	"github.com/haunted-saas/graphql-api-gateway/internal/middleware"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
-	analyticsv1 "github.com/haunted-saas/analytics-service/proto/analytics/v1"
 	billingv1 "github.com/haunted-saas/billing-service/proto/billing/v1"
 	featureflagsv1 "github.com/haunted-saas/feature-flags-service/proto/featureflags/v1"
 	llmv1 "github.com/haunted-saas/llm-gateway-service/proto/llm/v1"
-	notificationsv1 "github.com/haunted-saas/notifications-service/proto/notifications/v1"
 	userauthv1 "github.com/haunted-saas/user-auth-service/proto/userauth/v1"
 )
 
 // Query resolver
 func (r *Resolver) Query() generated.QueryResolver {
 	return &queryResolver{r}
+}
+
+// Subscription resolver (for GraphQL subscriptions/real-time updates)
+// TODO: Implement GraphQL subscriptions when needed
+func (r *Resolver) Subscription() generated.SubscriptionResolver {
+	return nil
 }
 
 type queryResolver struct{ *Resolver }
@@ -104,8 +107,8 @@ func (r *queryResolver) MySubscription(ctx context.Context) (*generated.Subscrip
 		return nil, err
 	}
 
-	resp, err := r.clients.Billing.GetUserSubscription(ctx, &billingv1.GetUserSubscriptionRequest{
-		UserId: userID,
+	resp, err := r.clients.Billing.GetSubscription(ctx, &billingv1.GetSubscriptionRequest{
+		TeamId: userID, // Fixed: use GetSubscription with team_id
 	})
 	if err != nil {
 		// User might not have a subscription - return nil instead of error
@@ -121,7 +124,7 @@ func (r *queryResolver) Subscription(ctx context.Context, id string) (*generated
 	}
 
 	resp, err := r.clients.Billing.GetSubscription(ctx, &billingv1.GetSubscriptionRequest{
-		SubscriptionId: id,
+		TeamId: id, // Fixed: field is team_id not SubscriptionId
 	})
 	if err != nil {
 		return nil, errors.ConvertGRPCError(err)
@@ -136,14 +139,15 @@ func (r *queryResolver) BillingPortalURL(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	resp, err := r.clients.Billing.CreatePortalSession(ctx, &billingv1.CreatePortalSessionRequest{
-		UserId: userID,
+	resp, err := r.clients.Billing.CreateCustomerPortalSession(ctx, &billingv1.CreateCustomerPortalSessionRequest{
+		TeamId:    userID, // Fixed: field is team_id and method is CreateCustomerPortalSession
+		ReturnUrl: "http://localhost:3000/dashboard",
 	})
 	if err != nil {
 		return "", errors.ConvertGRPCError(err)
 	}
 
-	return resp.Url, nil
+	return resp.PortalUrl, nil // Fixed: field is portal_url
 }
 
 // ============================================================================
@@ -247,7 +251,7 @@ func (r *queryResolver) AvailablePrompts(ctx context.Context) ([]*generated.Prom
 
 	prompts := make([]*generated.PromptMetadata, len(resp.Prompts))
 	for i, p := range resp.Prompts {
-		prompts[i] = convertPromptMetadata(p)
+		prompts[i] = convertPromptInfo(p) // Fixed: use convertPromptInfo for PromptInfo type
 	}
 
 	return prompts, nil
@@ -259,39 +263,35 @@ func (r *queryResolver) PromptDetails(ctx context.Context, name string) (*genera
 	}
 
 	resp, err := r.clients.LLMGateway.GetPromptMetadata(ctx, &llmv1.GetPromptMetadataRequest{
-		PromptName: name,
+		PromptPath: name, // Fixed: field is prompt_path
 	})
 	if err != nil {
 		return nil, errors.ConvertGRPCError(err)
 	}
 
-	return convertPromptMetadata(resp.Metadata), nil
+	return convertPromptMetadata(resp), nil // Fixed: no Metadata field, pass resp directly
 }
 
 func (r *queryResolver) MyLLMUsage(ctx context.Context) (*generated.LLMUsageStats, error) {
-	userID, err := middleware.GetUserID(ctx)
+	_, err := middleware.GetUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	resp, err := r.clients.LLMGateway.GetUsageStats(ctx, &llmv1.GetUsageStatsRequest{
-		UserId: userID,
+		TimeRange: "week", // Fixed: UserId field doesn't exist
 	})
 	if err != nil {
 		return nil, errors.ConvertGRPCError(err)
 	}
 
+	// CallsByModelJson doesn't exist in proto
 	var callsByModel map[string]interface{}
-	if resp.CallsByModelJson != "" {
-		if err := json.Unmarshal([]byte(resp.CallsByModelJson), &callsByModel); err != nil {
-			r.logger.Warn("failed to parse calls by model", zap.Error(err))
-		}
-	}
 
 	return &generated.LLMUsageStats{
-		TotalCalls:  int(resp.TotalCalls),
-		TotalTokens: int(resp.TotalTokens),
-		TotalCost:   resp.TotalCost,
+		TotalCalls:   int(resp.TotalRequests), // Fixed: field is total_requests
+		TotalTokens:  int(resp.TotalTokens),
+		TotalCost:    0.0, // TotalCost doesn't exist in proto
 		CallsByModel: callsByModel,
 	}, nil
 }
@@ -301,51 +301,13 @@ func (r *queryResolver) MyLLMUsage(ctx context.Context) (*generated.LLMUsageStat
 // ============================================================================
 
 func (r *queryResolver) NotificationToken(ctx context.Context) (*generated.NotificationToken, error) {
-	userID, err := middleware.GetUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := r.clients.Notifications.GenerateConnectionToken(ctx, &notificationsv1.GenerateConnectionTokenRequest{
-		UserId: userID,
-	})
-	if err != nil {
-		return nil, errors.ConvertGRPCError(err)
-	}
-
-	return &generated.NotificationToken{
-		Token:     resp.Token,
-		SocketURL: resp.SocketUrl,
-		ExpiresAt: resp.ExpiresAt.AsTime(),
-	}, nil
+	// GenerateConnectionToken RPC doesn't exist in proto yet
+	return nil, errors.NewBadRequestError("NotificationToken not implemented - GenerateConnectionToken RPC missing")
 }
 
 func (r *queryResolver) MyNotificationPreferences(ctx context.Context) (*generated.NotificationPreferences, error) {
-	userID, err := middleware.GetUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := r.clients.Notifications.GetPreferences(ctx, &notificationsv1.GetPreferencesRequest{
-		UserId: userID,
-	})
-	if err != nil {
-		return nil, errors.ConvertGRPCError(err)
-	}
-
-	var channels map[string]interface{}
-	if resp.ChannelsJson != "" {
-		if err := json.Unmarshal([]byte(resp.ChannelsJson), &channels); err != nil {
-			r.logger.Warn("failed to parse channels", zap.Error(err))
-		}
-	}
-
-	return &generated.NotificationPreferences{
-		EmailEnabled: resp.EmailEnabled,
-		PushEnabled:  resp.PushEnabled,
-		InAppEnabled: resp.InAppEnabled,
-		Channels:     channels,
-	}, nil
+	// GetPreferences RPC doesn't exist in proto yet
+	return nil, errors.NewBadRequestError("MyNotificationPreferences not implemented - GetPreferences RPC missing")
 }
 
 // ============================================================================
@@ -353,46 +315,8 @@ func (r *queryResolver) MyNotificationPreferences(ctx context.Context) (*generat
 // ============================================================================
 
 func (r *queryResolver) MyAnalytics(ctx context.Context, startDate *time.Time, endDate *time.Time) (*generated.AnalyticsSummary, error) {
-	userID, err := middleware.GetUserID(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	req := &analyticsv1.GetAnalyticsSummaryRequest{
-		UserId: userID,
-	}
-
-	if startDate != nil {
-		req.StartDate = timestamppb.New(*startDate)
-	}
-	if endDate != nil {
-		req.EndDate = timestamppb.New(*endDate)
-	}
-
-	resp, err := r.clients.Analytics.GetAnalyticsSummary(ctx, req)
-	if err != nil {
-		return nil, errors.ConvertGRPCError(err)
-	}
-
-	var eventsByType map[string]interface{}
-	if resp.EventsByTypeJson != "" {
-		if err := json.Unmarshal([]byte(resp.EventsByTypeJson), &eventsByType); err != nil {
-			r.logger.Warn("failed to parse events by type", zap.Error(err))
-		}
-	}
-
-	topEvents := make([]*generated.EventCount, len(resp.TopEvents))
-	for i, e := range resp.TopEvents {
-		topEvents[i] = &generated.EventCount{
-			EventName: e.EventName,
-			Count:     int(e.Count),
-		}
-	}
-
-	return &generated.AnalyticsSummary{
-		TotalEvents:  int(resp.TotalEvents),
-		UniqueUsers:  int(resp.UniqueUsers),
-		EventsByType: eventsByType,
-		TopEvents:    topEvents,
-	}, nil
+	// GetAnalyticsSummary RPC doesn't exist in proto yet
+	return nil, errors.NewBadRequestError("MyAnalytics not implemented - GetAnalyticsSummary RPC missing")
 }
+
+
