@@ -6,6 +6,8 @@ import { LoginForm, RegisterForm } from '@/components/auth';
 import { SparklesIcon } from '@heroicons/react/24/outline';
 import { useAnalytics } from '@/lib/analytics';
 
+export const dynamic = 'force-dynamic';
+
 export default function LoginPage() {
   const [showRegister, setShowRegister] = useState(false);
   const router = useRouter();

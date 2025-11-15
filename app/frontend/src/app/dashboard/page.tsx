@@ -5,6 +5,8 @@ import { DashboardLayout, PageContainer } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui';
 import { withAuth } from '@/components/auth';
 import { Feature } from '@/components/Feature';
+
+export const dynamic = 'force-dynamic';
 import {
   UserGroupIcon,
   CreditCardIcon,
@@ -50,7 +52,7 @@ const DashboardPage: React.FC = () => {
       description="Welcome back! Here's what's happening with your application."
       actions={
         <>
-          <Button variant="outline" size="md">
+          <Button variant="secondary" size="md">
             Download Report
           </Button>
           <Button variant="primary" size="md">
@@ -78,7 +80,7 @@ const DashboardPage: React.FC = () => {
             {stats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <Card key={stat.name} variant="elevated">
+                <Card key={stat.name} variant="glass" hover>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -129,15 +131,15 @@ const DashboardPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Button variant="outline" size="md" className="w-full justify-start">
+                  <Button variant="secondary" size="md" className="w-full justify-start">
                     <UserGroupIcon className="h-5 w-5 mr-2" />
                     Manage Users
                   </Button>
-                  <Button variant="outline" size="md" className="w-full justify-start">
+                  <Button variant="secondary" size="md" className="w-full justify-start">
                     <CreditCardIcon className="h-5 w-5 mr-2" />
                     View Billing
                   </Button>
-                  <Button variant="outline" size="md" className="w-full justify-start">
+                  <Button variant="secondary" size="md" className="w-full justify-start">
                     <ChartBarIcon className="h-5 w-5 mr-2" />
                     Analytics Dashboard
                   </Button>

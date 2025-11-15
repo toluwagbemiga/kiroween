@@ -66,7 +66,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onLoginCl
             placeholder="John Doe"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            leftIcon={<UserIcon />}
+
             required
             autoComplete="name"
             disabled={loading}
@@ -78,7 +78,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onLoginCl
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            leftIcon={<EnvelopeIcon />}
+
             required
             autoComplete="email"
             disabled={loading}
@@ -90,7 +90,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onLoginCl
             placeholder="At least 8 characters"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            leftIcon={<LockClosedIcon />}
+
             required
             autoComplete="new-password"
             disabled={loading}
@@ -103,7 +103,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onLoginCl
             placeholder="Re-enter your password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            leftIcon={<LockClosedIcon />}
+
             required
             autoComplete="new-password"
             disabled={loading}
@@ -125,7 +125,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onLoginCl
             variant="primary"
             size="lg"
             className="w-full"
-            loading={loading}
+            isLoading={loading}
             disabled={loading}
           >
             Create Account

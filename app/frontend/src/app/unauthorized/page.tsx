@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Button, Card, CardContent } from '@/components/ui';
 import { ShieldExclamationIcon } from '@heroicons/react/24/outline';
 
+export const dynamic = 'force-dynamic';
+
 export default function UnauthorizedPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 flex items-center justify-center p-4">
@@ -24,7 +26,7 @@ export default function UnauthorizedPage() {
               <Button variant="primary">Go to Dashboard</Button>
             </Link>
             <Link href="/login">
-              <Button variant="outline">Sign Out</Button>
+              <Button variant="secondary">Sign Out</Button>
             </Link>
           </div>
         </CardContent>

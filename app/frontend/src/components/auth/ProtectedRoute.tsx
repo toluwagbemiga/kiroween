@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PageLoading } from '@/components/ui';
+import { LoadingPage } from '@/components/ui';
 
 export interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -39,7 +39,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Show loading state while checking authentication
   if (loading) {
-    return <PageLoading text="Verifying authentication..." />;
+    return <LoadingPage />;
   }
 
   // Not authenticated

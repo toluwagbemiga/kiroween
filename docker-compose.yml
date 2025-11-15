@@ -48,8 +48,8 @@ services:
     environment:
       DATABASE_URL: postgres://unleash:unleash_pass@unleash-db:5432/unleash
       DATABASE_SSL: "false"
-      INIT_ADMIN_API_TOKENS: "*:*.unleash-insecure-api-token"
-      INIT_CLIENT_API_TOKENS: "*:*.unleash-insecure-api-token"
+      INIT_ADMIN_API_TOKENS: "*:*.unleash-insecure-admin-token"
+      INIT_CLIENT_API_TOKENS: "development:default.unleash-insecure-client-token"
     depends_on:
       - unleash-db
     healthcheck:
@@ -153,6 +153,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_CACHE_TTL: 300
+      TEST_MODE: "true"
       LOG_LEVEL: info
     depends_on:
       postgres:
@@ -168,8 +169,8 @@ services:
       - "50056:50056"
     environment:
       GRPC_PORT: 50056
-      UNLEASH_URL: http://unleash:4242/api
-      UNLEASH_API_TOKEN: "*:*.unleash-insecure-api-token"
+      UNLEASH_SERVER_URL: http://unleash:4242/api
+      UNLEASH_API_TOKEN: "*:*.unleash-insecure-admin-token"
       REDIS_HOST: redis
       REDIS_PORT: 6379
       ANALYTICS_SERVICE_URL: analytics-service:50055
@@ -214,11 +215,15 @@ services:
     build:
       context: ./app/frontend
       dockerfile: Dockerfile
+      args:
+        # Build-time env vars (baked into static files)
+        # These URLs are accessed from the browser, not from inside the container
+        NEXT_PUBLIC_GRAPHQL_URL: http://localhost:4000/graphql
+        NEXT_PUBLIC_SOCKETIO_URL: http://localhost:3002
+        NEXT_PUBLIC_ANALYTICS_ENABLED: "true"
+        NEXT_PUBLIC_FEATURE_FLAGS_ENABLED: "true"
     ports:
       - "3000:3000"
-    environment:
-      NEXT_PUBLIC_GRAPHQL_URL: http://localhost:4000/graphql
-      NEXT_PUBLIC_SOCKETIO_URL: http://localhost:3002
     depends_on:
       - graphql-gateway
 

@@ -23,12 +23,12 @@ default_model: gpt-4
 
 You are a friendly customer success manager...
 
-Write a personalized welcome email for {{user_name}} ({{user_email}})...
+Write a personalized welcome email for {{.user_name}} ({{.user_email}})...
 ```
 
 ## Variable Syntax
 
-Use `{{variable_name}}` for simple variables and `{{object.property}}` for nested values.
+Use `{{.variable_name}}` for simple variables (note the dot prefix required by Go templates) and `{{.object.property}}` for nested values.
 
 ## Hot Reloading
 

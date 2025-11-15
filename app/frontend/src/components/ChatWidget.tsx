@@ -171,7 +171,7 @@ export const ChatWidget: React.FC = () => {
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-white/10 border border-white/20 rounded-lg p-3">
-                  <Loading size="sm" variant="dots" />
+                  <Loading size="sm" />
                 </div>
               </div>
             )}

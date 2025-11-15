@@ -54,7 +54,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            leftIcon={<EnvelopeIcon />}
+
             required
             autoComplete="email"
             disabled={loading}
@@ -66,7 +66,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            leftIcon={<LockClosedIcon />}
+
             required
             autoComplete="current-password"
             disabled={loading}
@@ -93,7 +93,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick
             variant="primary"
             size="lg"
             className="w-full"
-            loading={loading}
+            isLoading={loading}
             disabled={loading}
           >
             Sign In

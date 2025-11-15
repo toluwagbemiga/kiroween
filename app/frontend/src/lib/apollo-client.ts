@@ -3,8 +3,9 @@ import { onError } from '@apollo/client/link/error';
 import { getToken, removeToken } from '@/contexts/AuthContext';
 
 const httpLink = new HttpLink({
-  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:8080/graphql',
-  credentials: 'include',
+  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql',
+  // Don't use credentials: 'include' with wildcard CORS
+  // credentials: 'include',
 });
 
 // Auth middleware to add JWT token to requests

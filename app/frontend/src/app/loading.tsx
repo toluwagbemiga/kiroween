@@ -1,5 +1,5 @@
-import { PageLoading } from '@/components/ui';
+import { LoadingPage } from '@/components/ui';
 
 export default function Loading() {
-  return <PageLoading text="Loading..." />;
+  return <LoadingPage />;
 }

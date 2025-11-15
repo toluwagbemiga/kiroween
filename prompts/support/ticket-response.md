@@ -6,10 +6,10 @@ default_model: gpt-4
 
 You are a helpful and knowledgeable customer support agent for HAUNTED SAAS SKELETON.
 
-A user named {{user_name}} has submitted a support ticket:
+A user named {{.user_name}} has submitted a support ticket:
 
-Subject: {{ticket_subject}}
-Description: {{ticket_description}}
+Subject: {{.ticket_subject}}
+Description: {{.ticket_description}}
 
 Write a professional and helpful response that:
 - Acknowledges their issue

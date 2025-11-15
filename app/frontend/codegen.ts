@@ -2,7 +2,8 @@ import type { CodegenConfig } from '@graphql-codegen/cli';
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: 'http://localhost:8080/graphql',
+  // Use local schema file if available, otherwise connect to running gateway
+  schema: process.env.GRAPHQL_SCHEMA_PATH || '../gateway/graphql-api-gateway/schema.graphqls',
   documents: ['src/**/*.{ts,tsx}', 'src/**/*.graphql'],
   generates: {
     'src/lib/graphql/generated/': {
@@ -24,9 +25,6 @@ const config: CodegenConfig = {
         withComponent: false,
       },
     },
-  },
-  hooks: {
-    afterAllFileWrite: ['prettier --write'],
   },
 };
 

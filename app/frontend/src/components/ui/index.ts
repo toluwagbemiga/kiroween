@@ -6,13 +6,13 @@ export { Input } from './Input';
 export type { InputProps } from './Input';
 
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './Card';
-export type { CardProps, CardHeaderProps, CardTitleProps, CardDescriptionProps, CardContentProps, CardFooterProps } from './Card';
+export type { CardProps } from './Card';
 
-export { Modal, ModalFooter } from './Modal';
-export type { ModalProps, ModalFooterProps } from './Modal';
+export { Modal } from './Modal';
+export type { ModalProps } from './Modal';
 
-export { Loading, PageLoading, InlineLoading } from './Loading';
-export type { LoadingProps, PageLoadingProps, InlineLoadingProps } from './Loading';
+export { Loading, LoadingPage } from './Loading';
+export type { LoadingProps } from './Loading';
 
 export { Badge, StatusBadge } from './Badge';
 export type { BadgeProps, StatusBadgeProps } from './Badge';

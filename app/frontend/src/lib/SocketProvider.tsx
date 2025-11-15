@@ -58,7 +58,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Socket.IO server URL from environment variable
-    const socketUrl = process.env.NEXT_PUBLIC_NOTIFICATIONS_URL || 'http://localhost:8085';
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKETIO_URL || 'http://localhost:3002';
 
     console.log('[Socket] Connecting to notifications service:', socketUrl);
 

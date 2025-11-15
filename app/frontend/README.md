@@ -78,8 +78,41 @@ Modern dashboard layout with:
 ## Environment Variables
 
 ```bash
-NEXT_PUBLIC_GRAPHQL_URL=http://localhost:4000/graphql
+NEXT_PUBLIC_GRAPHQL_URL=http://localhost:8080/graphql
 NEXT_PUBLIC_SOCKETIO_URL=http://localhost:3002
+NEXT_PUBLIC_ANALYTICS_ENABLED=true
+NEXT_PUBLIC_FEATURE_FLAGS_ENABLED=true
+```
+
+## GraphQL Code Generation
+
+The project uses GraphQL Code Generator to create TypeScript types from the GraphQL schema.
+
+**Run codegen:**
+```bash
+cd app/frontend
+npm run codegen
+```
+
+This reads the schema from `../gateway/graphql-api-gateway/schema.graphqls` without needing the gateway to be running.
+
+**Generated files:**
+- `src/lib/graphql/generated/graphql.ts` - TypeScript types
+- `src/lib/graphql/generated/hooks.tsx` - React hooks for queries/mutations
+- `src/lib/graphql/generated/gql.ts` - GraphQL tag function
+- `src/lib/graphql/generated/index.ts` - Main exports
+
+**Important:** All GraphQL mutations must use the `input` object format:
+```typescript
+// ✅ Correct
+mutation Login($input: LoginInput!) {
+  login(input: $input) { ... }
+}
+
+// ❌ Wrong
+mutation Login($email: String!, $password: String!) {
+  login(email: $email, password: $password) { ... }
+}
 ```
 
 ## Implementation Steps

@@ -3,7 +3,9 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { PageLoading } from '@/components/ui';
+import { LoadingPage } from '@/components/ui';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * Root page that redirects to dashboard if authenticated, otherwise to login
@@ -22,5 +24,5 @@ export default function HomePage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  return <PageLoading text="Loading..." />;
+  return <LoadingPage />;
 }

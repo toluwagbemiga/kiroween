@@ -5,9 +5,10 @@ import { gql } from '@apollo/client';
 
 // GraphQL Queries and Mutations
 const LOGIN_MUTATION = gql`
-  mutation Login($email: String!, $password: String!) {
-    login(email: $email, password: $password) {
+  mutation Login($input: LoginInput!) {
+    login(input: $input) {
       token
+      refreshToken
       user {
         id
         email
@@ -17,14 +18,16 @@ const LOGIN_MUTATION = gql`
           name
         }
       }
+      expiresAt
     }
   }
 `;
 
 const REGISTER_MUTATION = gql`
-  mutation Register($email: String!, $password: String!, $name: String!) {
-    register(email: $email, password: $password, name: $name) {
+  mutation Register($input: RegisterInput!) {
+    register(input: $input) {
       token
+      refreshToken
       user {
         id
         email
@@ -34,6 +37,7 @@ const REGISTER_MUTATION = gql`
           name
         }
       }
+      expiresAt
     }
   }
 `;
@@ -150,7 +154,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
 
       const { data } = await loginMutation({
-        variables: { email, password },
+        variables: { 
+          input: { email, password }
+        },
       });
 
       if (data?.login) {
@@ -173,7 +179,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
 
       const { data } = await registerMutation({
-        variables: { email, password, name },
+        variables: { 
+          input: { email, password, name }
+        },
       });
 
       if (data?.register) {

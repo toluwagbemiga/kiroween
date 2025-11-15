@@ -1,14 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useAnalytics } from '@/lib/analytics';
 
 /**
- * AnalyticsTracker component that tracks page views on route changes
- * This component should be placed in the root layout
+ * Internal tracker component that uses useSearchParams
  */
-export const AnalyticsTracker: React.FC = () => {
+const AnalyticsTrackerInternal: React.FC = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { trackPageView, isEnabled } = useAnalytics();
@@ -22,4 +21,17 @@ export const AnalyticsTracker: React.FC = () => {
 
   // This component doesn't render anything
   return null;
+};
+
+/**
+ * AnalyticsTracker component that tracks page views on route changes
+ * This component should be placed in the root layout
+ * Wrapped in Suspense to support static export
+ */
+export const AnalyticsTracker: React.FC = () => {
+  return (
+    <Suspense fallback={null}>
+      <AnalyticsTrackerInternal />
+    </Suspense>
+  );
 };
