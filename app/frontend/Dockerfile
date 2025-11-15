@@ -24,27 +24,25 @@ ENV NEXT_PUBLIC_SOCKETIO_URL=$NEXT_PUBLIC_SOCKETIO_URL
 ENV NEXT_PUBLIC_ANALYTICS_ENABLED=$NEXT_PUBLIC_ANALYTICS_ENABLED
 ENV NEXT_PUBLIC_FEATURE_FLAGS_ENABLED=$NEXT_PUBLIC_FEATURE_FLAGS_ENABLED
 
-# Build the application
+# Build the application with standalone output
 RUN npm run build
 
 # Production stage
-FROM node:18-alpine
+FROM node:18-alpine AS runner
 
 WORKDIR /app
-
-# Install serve globally for static file serving
-RUN npm install -g serve
-
-# Copy built static files from builder
-COPY --from=builder /app/out ./out
-COPY --from=builder /app/public ./public
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Change ownership
-RUN chown -R nextjs:nodejs /app
+# Set environment to production
+ENV NODE_ENV=production
+
+# Copy standalone build output
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
 USER nextjs
@@ -52,12 +50,9 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Set environment to production
-ENV NODE_ENV=production
-
-# Health check
+# Health check - use the Next.js health endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start the application using serve for static files
-CMD ["serve", "-s", "out", "-l", "3000"]
+# Start Next.js server
+CMD ["node", "server.js"]
