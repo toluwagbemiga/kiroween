@@ -211,7 +211,7 @@ func (r *mutationResolver) CreateSubscriptionCheckout(ctx context.Context, planI
 	}, nil
 }
 
-func (r *mutationResolver) CancelSubscription(ctx context.Context) (*generated.Subscription, error) {
+func (r *mutationResolver) CancelSubscription(ctx context.Context) (*generated.BillingSubscription, error) {
 	userID, err := middleware.GetUserID(ctx)
 	if err != nil {
 		return nil, err
@@ -229,7 +229,7 @@ func (r *mutationResolver) CancelSubscription(ctx context.Context) (*generated.S
 	return convertSubscription(resp.Subscription), nil
 }
 
-func (r *mutationResolver) UpdateSubscription(ctx context.Context, planID string) (*generated.Subscription, error) {
+func (r *mutationResolver) UpdateSubscription(ctx context.Context, planID string) (*generated.BillingSubscription, error) {
 	userID, err := middleware.GetUserID(ctx)
 	if err != nil {
 		return nil, err
@@ -315,8 +315,56 @@ func (r *mutationResolver) SendNotification(ctx context.Context, input generated
 }
 
 func (r *mutationResolver) UpdateNotificationPreferences(ctx context.Context, input generated.NotificationPreferencesInput) (*generated.NotificationPreferences, error) {
-	// UpdatePreferences RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("UpdateNotificationPreferences not implemented - proto RPC missing")
+	userID, err := middleware.GetUserID(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert channels JSON to string array
+	mutedChannels := []string{}
+	if input.Channels != nil {
+		if muted, ok := input.Channels["muted"].([]interface{}); ok {
+			for _, ch := range muted {
+				if chStr, ok := ch.(string); ok {
+					mutedChannels = append(mutedChannels, chStr)
+				}
+			}
+		}
+	}
+
+	resp, err := r.clients.Notifications.UpdatePreferences(ctx, &notificationsv1.UpdatePreferencesRequest{
+		UserId:        userID,
+		EmailEnabled:  boolPtrToBool(input.EmailEnabled),
+		PushEnabled:   boolPtrToBool(input.PushEnabled),
+		InAppEnabled:  boolPtrToBool(input.InAppEnabled),
+		MutedChannels: mutedChannels,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	if !resp.Success {
+		return nil, errors.NewBadRequestError("failed to update preferences")
+	}
+
+	// Fetch updated preferences
+	prefsResp, err := r.clients.Notifications.GetPreferences(ctx, &notificationsv1.GetPreferencesRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	channelsJSON := map[string]interface{}{
+		"muted": prefsResp.MutedChannels,
+	}
+
+	return &generated.NotificationPreferences{
+		EmailEnabled: prefsResp.EmailEnabled,
+		PushEnabled:  prefsResp.PushEnabled,
+		InAppEnabled: prefsResp.InAppEnabled,
+		Channels:     channelsJSON,
+	}, nil
 }
 
 func (r *mutationResolver) MarkNotificationRead(ctx context.Context, notificationID string) (bool, error) {
@@ -404,4 +452,11 @@ func stringPtrToString(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+func boolPtrToBool(b *bool) bool {
+	if b == nil {
+		return true
+	}
+	return *b
 }

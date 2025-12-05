@@ -31,10 +31,10 @@ type Query {
   plans: [Plan!]!
   
   # Get current user's subscription
-  mySubscription: Subscription
+  mySubscription: BillingSubscription
   
   # Get subscription by ID
-  subscription(id: ID!): Subscription
+  subscription(id: ID!): BillingSubscription
   
   # Get billing portal URL
   billingPortalUrl: String!
@@ -130,10 +130,10 @@ type Mutation {
   createSubscriptionCheckout(planId: ID!): CheckoutPayload!
   
   # Cancel subscription
-  cancelSubscription: Subscription!
+  cancelSubscription: BillingSubscription!
   
   # Update subscription
-  updateSubscription(planId: ID!): Subscription!
+  updateSubscription(planId: ID!): BillingSubscription!
   
   # ============================================================================
   # LLM GATEWAY
@@ -178,6 +178,7 @@ type User {
   email: String!
   name: String
   teamId: String
+  signupType: String
   roles: [Role!]!
   permissions: [String!]!
   enabledFeatures: [String!]!
@@ -185,7 +186,20 @@ type User {
   updatedAt: Time!
   
   # Relationships
-  subscription: Subscription
+  subscription: BillingSubscription
+  team: Team
+}
+
+type Team {
+  id: ID!
+  name: String!
+  slug: String!
+  ownerId: String
+  isMultiTenant: Boolean!
+  tenantMode: String!
+  maxMembers: Int!
+  createdAt: Time!
+  updatedAt: Time!
 }
 
 type Role {
@@ -213,7 +227,9 @@ input RegisterInput {
   email: String!
   password: String!
   name: String
+  signupType: String # 'owner' or 'member'
   teamId: String
+  invitationToken: String
 }
 
 input LoginInput {
@@ -248,7 +264,7 @@ type Plan {
   isActive: Boolean!
 }
 
-type Subscription {
+type BillingSubscription {
   id: ID!
   userId: ID!
   planId: ID!

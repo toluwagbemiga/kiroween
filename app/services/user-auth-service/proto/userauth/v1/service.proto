@@ -35,6 +35,14 @@ service UserAuthService {
   // Authorization
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
   rpc GetUserPermissions(GetUserPermissionsRequest) returns (GetUserPermissionsResponse);
+  
+  // Team Management
+  rpc CreateTeam(CreateTeamRequest) returns (CreateTeamResponse);
+  rpc GetTeam(GetTeamRequest) returns (GetTeamResponse);
+  rpc UpdateTeam(UpdateTeamRequest) returns (UpdateTeamResponse);
+  rpc InviteTeamMember(InviteTeamMemberRequest) returns (InviteTeamMemberResponse);
+  rpc AcceptTeamInvitation(AcceptTeamInvitationRequest) returns (AcceptTeamInvitationResponse);
+  rpc ListTeamMembers(ListTeamMembersRequest) returns (ListTeamMembersResponse);
 }
 
 // Authentication Messages
@@ -42,6 +50,9 @@ message RegisterRequest {
   string email = 1;
   string password = 2;
   string name = 3;
+  string signup_type = 4; // 'owner' or 'member'
+  string team_id = 5; // Required if signup_type is 'member'
+  string invitation_token = 6; // Optional invitation token
 }
 
 message RegisterResponse {
@@ -227,6 +238,8 @@ message User {
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
   repeated Role roles = 8;
+  string team_id = 9;
+  string signup_type = 10;
 }
 
 message Role {
@@ -246,4 +259,78 @@ message Permission {
   string action = 4;
   string description = 5;
   google.protobuf.Timestamp created_at = 6;
+}
+
+// Team Management Messages
+message Team {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string owner_id = 4;
+  bool is_multi_tenant = 5;
+  string tenant_mode = 6;
+  int32 max_members = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message CreateTeamRequest {
+  string name = 1;
+  string slug = 2;
+  string owner_id = 3;
+  bool is_multi_tenant = 4;
+  string tenant_mode = 5;
+}
+
+message CreateTeamResponse {
+  Team team = 1;
+}
+
+message GetTeamRequest {
+  string team_id = 1;
+}
+
+message GetTeamResponse {
+  Team team = 1;
+}
+
+message UpdateTeamRequest {
+  string team_id = 1;
+  string name = 2;
+  bool is_multi_tenant = 3;
+  string tenant_mode = 4;
+}
+
+message UpdateTeamResponse {
+  Team team = 1;
+}
+
+message InviteTeamMemberRequest {
+  string team_id = 1;
+  string email = 2;
+  string invited_by = 3;
+}
+
+message InviteTeamMemberResponse {
+  string invitation_id = 1;
+  string token = 2;
+}
+
+message AcceptTeamInvitationRequest {
+  string token = 1;
+  string user_id = 2;
+}
+
+message AcceptTeamInvitationResponse {
+  bool success = 1;
+  Team team = 2;
+}
+
+message ListTeamMembersRequest {
+  string team_id = 1;
+}
+
+message ListTeamMembersResponse {
+  repeated User members = 1;
+  int32 total_count = 2;
 }

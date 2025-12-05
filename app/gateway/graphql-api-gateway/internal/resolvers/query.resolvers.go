@@ -23,12 +23,6 @@ func (r *Resolver) Query() generated.QueryResolver {
 	return &queryResolver{r}
 }
 
-// Subscription resolver (for GraphQL subscriptions/real-time updates)
-// TODO: Implement GraphQL subscriptions when needed
-func (r *Resolver) Subscription() generated.SubscriptionResolver {
-	return nil
-}
-
 type queryResolver struct{ *Resolver }
 
 // ============================================================================
@@ -168,7 +162,7 @@ func (r *queryResolver) Plans(ctx context.Context) ([]*generated.Plan, error) {
 	return plans, nil
 }
 
-func (r *queryResolver) MySubscription(ctx context.Context) (*generated.Subscription, error) {
+func (r *queryResolver) MySubscription(ctx context.Context) (*generated.BillingSubscription, error) {
 	userID, err := middleware.GetUserID(ctx)
 	if err != nil {
 		return nil, err
@@ -185,7 +179,7 @@ func (r *queryResolver) MySubscription(ctx context.Context) (*generated.Subscrip
 	return convertSubscription(resp.Subscription), nil
 }
 
-func (r *queryResolver) Subscription(ctx context.Context, id string) (*generated.Subscription, error) {
+func (r *queryResolver) Subscription(ctx context.Context, id string) (*generated.BillingSubscription, error) {
 	if err := middleware.RequireAuth(ctx); err != nil {
 		return nil, err
 	}

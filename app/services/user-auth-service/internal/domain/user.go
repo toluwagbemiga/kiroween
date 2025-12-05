@@ -10,12 +10,15 @@ type User struct {
 	Email        string     `gorm:"uniqueIndex;not null" json:"email"`
 	PasswordHash string     `gorm:"not null" json:"-"` // Never serialize password hash
 	Name         string     `gorm:"not null" json:"name"`
+	TeamID       *string    `gorm:"type:uuid" json:"team_id,omitempty"`
+	SignupType   string     `gorm:"default:'owner'" json:"signup_type"` // 'owner' or 'member'
 	IsActive     bool       `gorm:"default:true" json:"is_active"`
 	IsLocked     bool       `gorm:"default:false" json:"is_locked"`
 	LockedUntil  *time.Time `gorm:"index" json:"locked_until,omitempty"`
 	CreatedAt    time.Time  `gorm:"not null;default:now()" json:"created_at"`
 	UpdatedAt    time.Time  `gorm:"not null;default:now()" json:"updated_at"`
 	Roles        []Role     `gorm:"many2many:user_roles;" json:"roles,omitempty"`
+	Team         *Team      `gorm:"foreignKey:TeamID" json:"team,omitempty"`
 }
 
 // TableName specifies the table name for GORM

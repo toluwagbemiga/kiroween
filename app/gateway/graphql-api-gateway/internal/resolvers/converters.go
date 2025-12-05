@@ -98,34 +98,28 @@ func convertPlan(p *billingv1.Plan) *generated.Plan {
 	}
 }
 
-func convertSubscription(s *billingv1.Subscription) *generated.Subscription {
+func convertSubscription(s *billingv1.Subscription) *generated.BillingSubscription {
 	if s == nil {
 		return nil
 	}
 
-	// TODO: Fix this once gqlgen regenerates with correct schema
-	// The generated.Subscription type doesn't match the GraphQL schema yet
-	return nil
-	
-	/* Commented out until gqlgen regenerates properly
 	cancelAtPeriodEnd := false
 	if s.CancelAt != nil {
 		cancelAtPeriodEnd = true
 	}
 
-	return &generated.Subscription{
-		ID:                    s.Id,
-		UserID:                s.TeamId,
-		PlanID:                s.PlanId,
-		Status:                s.Status,
-		CurrentPeriodStart:    s.CurrentPeriodStart.AsTime(),
-		CurrentPeriodEnd:      s.CurrentPeriodEnd.AsTime(),
-		CancelAtPeriodEnd:     cancelAtPeriodEnd,
-		StripeSubscriptionID:  s.StripeSubscriptionId,
-		CreatedAt:             s.CreatedAt.AsTime(),
-		UpdatedAt:             s.UpdatedAt.AsTime(),
+	return &generated.BillingSubscription{
+		ID:                   s.Id,
+		UserID:               s.TeamId,
+		PlanID:               s.PlanId,
+		Status:               s.Status,
+		CurrentPeriodStart:   s.CurrentPeriodStart.AsTime(),
+		CurrentPeriodEnd:     s.CurrentPeriodEnd.AsTime(),
+		CancelAtPeriodEnd:    cancelAtPeriodEnd,
+		StripeSubscriptionID: s.StripeSubscriptionId,
+		CreatedAt:            s.CreatedAt.AsTime(),
+		UpdatedAt:            s.UpdatedAt.AsTime(),
 	}
-	*/
 }
 
 // ============================================================================
