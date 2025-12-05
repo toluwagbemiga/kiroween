@@ -18,6 +18,7 @@ const LOGIN_MUTATION = gql`
         id
         email
         name
+        teamId
         roles {
           id
           name
@@ -37,6 +38,7 @@ const REGISTER_MUTATION = gql`
         id
         email
         name
+        teamId
         roles {
           id
           name
@@ -53,6 +55,7 @@ const VALIDATE_TOKEN_QUERY = gql`
       id
       email
       name
+      teamId
       roles {
         id
         name
@@ -72,6 +75,7 @@ export interface User {
   id: string;
   email: string;
   name?: string | null;
+  teamId?: string | null;
   roles: Array<{
     id: string;
     name: string;

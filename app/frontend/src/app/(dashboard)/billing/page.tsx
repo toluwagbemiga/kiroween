@@ -3,6 +3,8 @@
 import { useQuery, useMutation } from '@apollo/client';
 import { gql } from '@apollo/client';
 import { useState } from 'react';
+import { PageContainer } from '@/components/layout';
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge } from '@/components/ui';
 
 const GET_PLANS = gql`
   query GetPlans {
@@ -41,7 +43,6 @@ const CREATE_CHECKOUT = gql`
 export default function BillingPage() {
   const { data, loading } = useQuery(GET_PLANS);
   const [createCheckout] = useMutation(CREATE_CHECKOUT);
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
   const handleSubscribe = async (planId: string) => {
     try {
@@ -55,90 +56,101 @@ export default function BillingPage() {
   };
 
   if (loading) {
-    return <div className="p-6">Loading plans...</div>;
+    return (
+      <PageContainer>
+        <div className="text-center py-12 text-gray-400">Loading plans...</div>
+      </PageContainer>
+    );
   }
 
   const subscription = data?.mySubscription;
   const plans = data?.plans || [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Billing & Subscription</h1>
-        <p className="text-gray-600 mt-2">
-          Manage your subscription and billing
-        </p>
-      </div>
+    <PageContainer>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Billing & Subscription</h1>
+          <p className="text-gray-400 mt-2">
+            Manage your subscription and billing
+          </p>
+        </div>
 
-      {/* Current Subscription */}
-      {subscription && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Current Subscription</h2>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="font-medium">{subscription.plan.name}</p>
-              <p className="text-sm text-gray-600">
-                Status: <span className="capitalize">{subscription.status}</span>
-              </p>
-              <p className="text-sm text-gray-600">
-                Renews: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold">${subscription.plan.price}</p>
-              <p className="text-sm text-gray-600">per month</p>
-            </div>
+        {/* Current Subscription */}
+        {subscription && (
+          <Card variant="glass">
+            <CardHeader>
+              <CardTitle>Current Subscription</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-white">{subscription.plan.name}</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Status: <Badge variant={subscription.status === 'active' ? 'success' : 'warning'}>
+                      {subscription.status}
+                    </Badge>
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Renews: {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-white">${subscription.plan.price}</p>
+                  <p className="text-sm text-gray-400">per month</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Available Plans */}
+        <div>
+          <h2 className="text-2xl font-semibold mb-4 text-white">Available Plans</h2>
+          <div className="grid md:grid-cols-3 gap-6">
+            {plans.map((plan: any) => (
+              <Card key={plan.id} variant="glass" hover>
+                <CardContent className="p-6">
+                  <h3 className="text-xl font-bold mb-2 text-white">{plan.name}</h3>
+                  <div className="mb-4">
+                    <span className="text-3xl font-bold text-white">${plan.price}</span>
+                    <span className="text-gray-400">/{plan.interval}</span>
+                  </div>
+                  <ul className="space-y-2 mb-6">
+                    {plan.features.map((feature: string, idx: number) => (
+                      <li key={idx} className="flex items-start">
+                        <span className="text-green-400 mr-2">✓</span>
+                        <span className="text-sm text-gray-300">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    variant="primary"
+                    onClick={() => handleSubscribe(plan.id)}
+                    className="w-full"
+                    disabled={subscription?.plan.name === plan.name}
+                  >
+                    {subscription?.plan.name === plan.name ? 'Current Plan' : 'Subscribe'}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
-      )}
 
-      {/* Available Plans */}
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Available Plans</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          {plans.map((plan: any) => (
-            <div
-              key={plan.id}
-              className={`border rounded-lg p-6 ${
-                selectedPlan === plan.id ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200'
-              }`}
-            >
-              <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
-              <div className="mb-4">
-                <span className="text-3xl font-bold">${plan.price}</span>
-                <span className="text-gray-600">/{plan.interval}</span>
-              </div>
-              <ul className="space-y-2 mb-6">
-                {plan.features.map((feature: string, idx: number) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="text-green-500 mr-2">✓</span>
-                    <span className="text-sm">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => handleSubscribe(plan.id)}
-                className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
-                {subscription?.plan.name === plan.name ? 'Current Plan' : 'Subscribe'}
-              </button>
-            </div>
-          ))}
-        </div>
+        {/* Billing Portal */}
+        {subscription && (
+          <Card variant="glass">
+            <CardContent className="p-6">
+              <h3 className="font-semibold mb-2 text-white">Manage Billing</h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Update payment method, view invoices, or cancel subscription
+              </p>
+              <Button variant="secondary">Open Billing Portal</Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
-
-      {/* Billing Portal */}
-      {subscription && (
-        <div className="bg-gray-50 rounded-lg p-6">
-          <h3 className="font-semibold mb-2">Manage Billing</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Update payment method, view invoices, or cancel subscription
-          </p>
-          <button className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900">
-            Open Billing Portal
-          </button>
-        </div>
-      )}
-    </div>
+    </PageContainer>
   );
 }
