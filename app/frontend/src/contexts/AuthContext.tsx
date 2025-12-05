@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation, useQuery } from '@apollo/client';
 import { gql } from '@apollo/client';
+import { 
+  useLoginMutation, 
+  useRegisterMutation, 
+  useLogoutMutation,
+  useValidateTokenQuery,
+} from '@/lib/graphql/generated/hooks';
 
 // GraphQL Queries and Mutations
 const LOGIN_MUTATION = gql`
@@ -62,11 +67,11 @@ const LOGOUT_MUTATION = gql`
   }
 `;
 
-// Types
+// Simplified User type for auth context (subset of full User type)
 export interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string | null;
   roles: Array<{
     id: string;
     name: string;
@@ -112,14 +117,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const router = useRouter();
 
   // Validate token on mount
-  const { refetch: validateToken } = useQuery(VALIDATE_TOKEN_QUERY, {
+  const { refetch: validateToken } = useValidateTokenQuery({
     skip: true,
   });
 
   // Mutations
-  const [loginMutation] = useMutation(LOGIN_MUTATION);
-  const [registerMutation] = useMutation(REGISTER_MUTATION);
-  const [logoutMutation] = useMutation(LOGOUT_MUTATION);
+  const [loginMutation] = useLoginMutation();
+  const [registerMutation] = useRegisterMutation();
+  const [logoutMutation] = useLogoutMutation();
 
   // Check authentication on mount
   useEffect(() => {

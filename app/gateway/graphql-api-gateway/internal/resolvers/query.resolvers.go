@@ -10,9 +10,11 @@ import (
 	"github.com/haunted-saas/graphql-api-gateway/internal/middleware"
 	"go.uber.org/zap"
 
+	analyticsv1 "github.com/haunted-saas/analytics-service/proto/analytics/v1"
 	billingv1 "github.com/haunted-saas/billing-service/proto/billing/v1"
 	featureflagsv1 "github.com/haunted-saas/feature-flags-service/proto/featureflags/v1"
 	llmv1 "github.com/haunted-saas/llm-gateway-service/proto/llm/v1"
+	notificationsv1 "github.com/haunted-saas/notifications-service/proto/notifications/v1"
 	userauthv1 "github.com/haunted-saas/user-auth-service/proto/userauth/v1"
 )
 
@@ -48,13 +50,52 @@ func (r *queryResolver) Me(ctx context.Context) (*generated.User, error) {
 }
 
 func (r *queryResolver) User(ctx context.Context, id string) (*generated.User, error) {
-	// GetUser RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("User query not implemented - GetUser RPC missing")
+	if err := middleware.RequireAuth(ctx); err != nil {
+		return nil, err
+	}
+
+	resp, err := r.clients.UserAuth.GetUser(ctx, &userauthv1.GetUserRequest{
+		UserId: id,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	return convertUser(resp.User), nil
 }
 
 func (r *queryResolver) Users(ctx context.Context, limit *int, offset *int) (*generated.UserConnection, error) {
-	// ListUsers RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("Users query not implemented - ListUsers RPC missing")
+	if err := middleware.RequireRole(ctx, "admin"); err != nil {
+		return nil, err
+	}
+
+	reqLimit := int32(50)
+	reqOffset := int32(0)
+	
+	if limit != nil {
+		reqLimit = int32(*limit)
+	}
+	if offset != nil {
+		reqOffset = int32(*offset)
+	}
+
+	resp, err := r.clients.UserAuth.ListUsers(ctx, &userauthv1.ListUsersRequest{
+		Limit:  reqLimit,
+		Offset: reqOffset,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	users := make([]*generated.User, len(resp.Users))
+	for i, u := range resp.Users {
+		users[i] = convertUser(u)
+	}
+
+	return &generated.UserConnection{
+		Nodes:      users,
+		TotalCount: int(resp.TotalCount),
+	}, nil
 }
 
 func (r *queryResolver) MyPermissions(ctx context.Context) ([]string, error) {
@@ -74,13 +115,39 @@ func (r *queryResolver) MyPermissions(ctx context.Context) ([]string, error) {
 }
 
 func (r *queryResolver) Roles(ctx context.Context) ([]*generated.Role, error) {
-	// ListRoles RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("Roles query not implemented - ListRoles RPC missing")
+	if err := middleware.RequireRole(ctx, "admin"); err != nil {
+		return nil, err
+	}
+
+	resp, err := r.clients.UserAuth.ListRoles(ctx, &userauthv1.ListRolesRequest{
+		Limit:  100,
+		Offset: 0,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	roles := make([]*generated.Role, len(resp.Roles))
+	for i, role := range resp.Roles {
+		roles[i] = convertRole(role)
+	}
+
+	return roles, nil
 }
 
 func (r *queryResolver) Role(ctx context.Context, id string) (*generated.Role, error) {
-	// GetRole RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("Role query not implemented - GetRole RPC missing")
+	if err := middleware.RequireRole(ctx, "admin"); err != nil {
+		return nil, err
+	}
+
+	resp, err := r.clients.UserAuth.GetRole(ctx, &userauthv1.GetRoleRequest{
+		RoleId: id,
+	})
+	if err != nil {
+		return nil, errors.ConvertGRPCError(err)
+	}
+
+	return convertRole(resp.Role), nil
 }
 
 // ============================================================================
@@ -301,13 +368,57 @@ func (r *queryResolver) MyLLMUsage(ctx context.Context) (*generated.LLMUsageStat
 // ============================================================================
 
 func (r *queryResolver) NotificationToken(ctx context.Context) (*generated.NotificationToken, error) {
-	// GenerateConnectionToken RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("NotificationToken not implemented - GenerateConnectionToken RPC missing")
+	userID, err := middleware.GetUserID(ctx)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError()
+	}
+
+	// Call notifications service
+	resp, err := r.clients.Notifications.GenerateConnectionToken(ctx, &notificationsv1.GenerateConnectionTokenRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		r.logger.Error("failed to generate connection token", zap.Error(err))
+		return nil, errors.NewInternalError()
+	}
+
+	socketURL := "http://localhost:3002" // TODO: Get from config
+	expiresAt := time.Unix(resp.ExpiresAt, 0)
+
+	return &generated.NotificationToken{
+		Token:     resp.Token,
+		SocketURL: socketURL,
+		ExpiresAt: expiresAt,
+	}, nil
 }
 
 func (r *queryResolver) MyNotificationPreferences(ctx context.Context) (*generated.NotificationPreferences, error) {
-	// GetPreferences RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("MyNotificationPreferences not implemented - GetPreferences RPC missing")
+	userID, err := middleware.GetUserID(ctx)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError()
+	}
+
+	// Call notifications service
+	resp, err := r.clients.Notifications.GetPreferences(ctx, &notificationsv1.GetPreferencesRequest{
+		UserId: userID,
+	})
+	if err != nil {
+		r.logger.Error("failed to get notification preferences", zap.Error(err))
+		return nil, errors.NewInternalError()
+	}
+
+	// Convert muted channels to JSON
+	channels := make(map[string]interface{})
+	for _, channel := range resp.MutedChannels {
+		channels[channel] = false
+	}
+
+	return &generated.NotificationPreferences{
+		EmailEnabled: resp.EmailEnabled,
+		PushEnabled:  resp.PushEnabled,
+		InAppEnabled: resp.InAppEnabled,
+		Channels:     channels,
+	}, nil
 }
 
 // ============================================================================
@@ -315,8 +426,55 @@ func (r *queryResolver) MyNotificationPreferences(ctx context.Context) (*generat
 // ============================================================================
 
 func (r *queryResolver) MyAnalytics(ctx context.Context, startDate *time.Time, endDate *time.Time) (*generated.AnalyticsSummary, error) {
-	// GetAnalyticsSummary RPC doesn't exist in proto yet
-	return nil, errors.NewBadRequestError("MyAnalytics not implemented - GetAnalyticsSummary RPC missing")
+	userID, err := middleware.GetUserID(ctx)
+	if err != nil {
+		return nil, errors.NewUnauthorizedError()
+	}
+
+	// Set default date range if not provided
+	now := time.Now()
+	start := now.AddDate(0, 0, -30) // 30 days ago
+	end := now
+
+	if startDate != nil {
+		start = *startDate
+	}
+	if endDate != nil {
+		end = *endDate
+	}
+
+	// Call analytics service
+	resp, err := r.clients.Analytics.GetAnalyticsSummary(ctx, &analyticsv1.GetAnalyticsSummaryRequest{
+		UserId:    userID,
+		StartTime: start.Unix(),
+		EndTime:   end.Unix(),
+	})
+	if err != nil {
+		r.logger.Error("failed to get analytics summary", zap.Error(err))
+		return nil, errors.NewInternalError()
+	}
+
+	// Convert to GraphQL type
+	topEvents := make([]*generated.TopEvent, len(resp.TopEvents))
+	for i, event := range resp.TopEvents {
+		topEvents[i] = &generated.TopEvent{
+			EventName: event.EventName,
+			Count:     int(event.Count),
+		}
+	}
+
+	// Convert map[string]int64 to map[string]interface{} for JSON type
+	eventsByType := make(map[string]interface{})
+	for k, v := range resp.EventsByType {
+		eventsByType[k] = int(v)
+	}
+
+	return &generated.AnalyticsSummary{
+		TotalEvents:  int(resp.TotalEvents),
+		UniqueUsers:  int(resp.UniqueUsers),
+		EventsByType: eventsByType,
+		TopEvents:    topEvents,
+	}, nil
 }
 
 

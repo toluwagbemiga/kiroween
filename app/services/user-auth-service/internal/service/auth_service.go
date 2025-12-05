@@ -449,3 +449,70 @@ func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword stri
 	
 	return nil
 }
+
+// GetUserByID gets a user by ID
+func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New(errors.ErrCodeUserNotFound, "user not found")
+		}
+		return nil, errors.Wrap(errors.ErrCodeInternal, "failed to get user", err)
+	}
+	
+	return user, nil
+}
+
+// ListUsers lists all users with pagination
+func (s *AuthService) ListUsers(ctx context.Context, limit, offset int) ([]*domain.User, int, error) {
+	users, err := s.userRepo.List(ctx, limit, offset)
+	if err != nil {
+		return nil, 0, errors.Wrap(errors.ErrCodeInternal, "failed to list users", err)
+	}
+	
+	total, err := s.userRepo.Count(ctx)
+	if err != nil {
+		return nil, 0, errors.Wrap(errors.ErrCodeInternal, "failed to count users", err)
+	}
+	
+	return users, total, nil
+}
+
+// UpdateUser updates a user's profile
+func (s *AuthService) UpdateUser(ctx context.Context, userID, name, email string) (*domain.User, error) {
+	user, err := s.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New(errors.ErrCodeUserNotFound, "user not found")
+		}
+		return nil, errors.Wrap(errors.ErrCodeInternal, "failed to get user", err)
+	}
+	
+	// Update fields if provided
+	if name != "" {
+		if err := auth.ValidateName(name); err != nil {
+			return nil, errors.New(errors.ErrCodeInvalidInput, err.Error())
+		}
+		user.Name = name
+	}
+	
+	if email != "" && email != user.Email {
+		if err := auth.ValidateEmail(email); err != nil {
+			return nil, errors.New(errors.ErrCodeInvalidEmail, err.Error())
+		}
+		
+		// Check if email is already taken
+		existingUser, err := s.userRepo.FindByEmail(ctx, email)
+		if err == nil && existingUser != nil && existingUser.ID != userID {
+			return nil, errors.New(errors.ErrCodeEmailAlreadyExists, "email already in use")
+		}
+		
+		user.Email = email
+	}
+	
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, errors.Wrap(errors.ErrCodeInternal, "failed to update user", err)
+	}
+	
+	return user, nil
+}

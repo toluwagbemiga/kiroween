@@ -18,6 +18,9 @@ service AnalyticsService {
   // GetUserCount returns unique user count
   rpc GetUserCount(GetUserCountRequest) returns (GetUserCountResponse);
   
+  // GetAnalyticsSummary returns analytics summary for a user
+  rpc GetAnalyticsSummary(GetAnalyticsSummaryRequest) returns (GetAnalyticsSummaryResponse);
+  
   // HealthCheck returns service health status
   rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
 }
@@ -75,6 +78,24 @@ message GetUserCountRequest {
 
 message GetUserCountResponse {
   int64 unique_users = 1;
+}
+
+message GetAnalyticsSummaryRequest {
+  string user_id = 1;
+  int64 start_time = 2;
+  int64 end_time = 3;
+}
+
+message GetAnalyticsSummaryResponse {
+  int64 total_events = 1;
+  int64 unique_users = 2;
+  map<string, int64> events_by_type = 3;
+  repeated TopEvent top_events = 4;
+}
+
+message TopEvent {
+  string event_name = 1;
+  int64 count = 2;
 }
 
 message HealthCheckRequest {}

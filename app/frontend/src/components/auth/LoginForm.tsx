@@ -28,7 +28,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onRegisterClick
       await login(email, password);
       onSuccess?.();
     } catch (err: any) {
-      setFormError(err.message || 'Login failed');
+      const errorMessage = err.message || 'Login failed';
+      if (errorMessage.includes('credentials') || errorMessage.includes('password') || errorMessage.includes('email')) {
+        setFormError('Invalid email or password. Please check your credentials and try again.');
+      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+        setFormError('Unable to connect to server. Please check your connection.');
+      } else {
+        setFormError(errorMessage);
+      }
     }
   };
 

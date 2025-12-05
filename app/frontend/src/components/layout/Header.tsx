@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="sticky top-0 z-30 h-16 border-b border-white/10 bg-white/5 backdrop-blur-md">
+    <header className="sticky top-0 z-30 h-14 border-b border-white/10 bg-white/5 backdrop-blur-md">
       <div className="flex h-full items-center justify-between px-4 lg:px-6">
         {/* Left section */}
         <div className="flex items-center space-x-4">
@@ -76,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
               className="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors"
             >
               <Avatar
-                name={user?.name}
+                name={user?.name || undefined}
                 size="sm"
               />
               <span className="hidden md:block text-sm font-medium text-white">

@@ -64,7 +64,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Create Socket.IO connection with JWT authentication
     const newSocket = io(socketUrl, {
-      auth: {
+      query: {
         token: token,
       },
       transports: ['websocket', 'polling'], // Try WebSocket first, fallback to polling

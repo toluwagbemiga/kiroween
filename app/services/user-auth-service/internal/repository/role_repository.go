@@ -14,6 +14,8 @@ type RoleRepository interface {
 	FindByName(ctx context.Context, name string) (*domain.Role, error)
 	Update(ctx context.Context, role *domain.Role) error
 	Delete(ctx context.Context, id string) error
+	List(ctx context.Context, limit, offset int) ([]*domain.Role, error)
+	Count(ctx context.Context) (int, error)
 	GetRolePermissions(ctx context.Context, roleID string) ([]domain.Permission, error)
 	AssignPermission(ctx context.Context, roleID, permissionID string) error
 	RevokePermission(ctx context.Context, roleID, permissionID string) error
@@ -120,4 +122,24 @@ func (r *roleRepository) SetPermissions(ctx context.Context, roleID string, perm
 		
 		return nil
 	})
+}
+
+// List lists roles with pagination
+func (r *roleRepository) List(ctx context.Context, limit, offset int) ([]*domain.Role, error) {
+	var roles []*domain.Role
+	err := r.db.WithContext(ctx).
+		Preload("Permissions").
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&roles).Error
+	
+	return roles, err
+}
+
+// Count counts total roles
+func (r *roleRepository) Count(ctx context.Context) (int, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.Role{}).Count(&count).Error
+	return int(count), err
 }

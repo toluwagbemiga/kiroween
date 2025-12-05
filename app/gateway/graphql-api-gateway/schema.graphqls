@@ -370,10 +370,10 @@ type AnalyticsSummary {
   totalEvents: Int!
   uniqueUsers: Int!
   eventsByType: JSON!
-  topEvents: [EventCount!]!
+  topEvents: [TopEvent!]!
 }
 
-type EventCount {
+type TopEvent {
   eventName: String!
   count: Int!
 }

@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { gql, useMutation } from '@apollo/client';
+import { gql } from '@apollo/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTrackEventMutation, useIdentifyUserMutation } from '@/lib/graphql/generated/hooks';
 
 // GraphQL Mutations
 const TRACK_EVENT_MUTATION = gql`
@@ -30,8 +31,8 @@ export interface IdentifyUserOptions {
  */
 export const useAnalytics = () => {
   const { user, isAuthenticated } = useAuth();
-  const [trackEventMutation] = useMutation(TRACK_EVENT_MUTATION);
-  const [identifyUserMutation] = useMutation(IDENTIFY_USER_MUTATION);
+  const [trackEventMutation] = useTrackEventMutation();
+  const [identifyUserMutation] = useIdentifyUserMutation();
 
   /**
    * Track a custom event

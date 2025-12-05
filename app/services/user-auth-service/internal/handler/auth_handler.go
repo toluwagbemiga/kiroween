@@ -130,3 +130,55 @@ func (h *AuthHandler) ResetPassword(ctx context.Context, req *pb.ResetPasswordRe
 	
 	return &pb.ResetPasswordResponse{Success: true}, nil
 }
+
+// GetUser gets a user by ID
+func (h *AuthHandler) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+	user, err := h.authService.GetUserByID(ctx, req.UserId)
+	if err != nil {
+		return nil, errors.MapToGRPCError(err)
+	}
+	
+	return &pb.GetUserResponse{
+		User: domainUserToProto(user),
+	}, nil
+}
+
+// ListUsers lists all users with pagination
+func (h *AuthHandler) ListUsers(ctx context.Context, req *pb.ListUsersRequest) (*pb.ListUsersResponse, error) {
+	limit := int(req.Limit)
+	offset := int(req.Offset)
+	
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	
+	users, total, err := h.authService.ListUsers(ctx, limit, offset)
+	if err != nil {
+		return nil, errors.MapToGRPCError(err)
+	}
+	
+	protoUsers := make([]*pb.User, len(users))
+	for i, user := range users {
+		protoUsers[i] = domainUserToProto(user)
+	}
+	
+	return &pb.ListUsersResponse{
+		Users:      protoUsers,
+		TotalCount: int32(total),
+	}, nil
+}
+
+// UpdateUser updates a user's profile
+func (h *AuthHandler) UpdateUser(ctx context.Context, req *pb.UpdateUserRequest) (*pb.UpdateUserResponse, error) {
+	user, err := h.authService.UpdateUser(ctx, req.UserId, req.Name, req.Email)
+	if err != nil {
+		return nil, errors.MapToGRPCError(err)
+	}
+	
+	return &pb.UpdateUserResponse{
+		User: domainUserToProto(user),
+	}, nil
+}

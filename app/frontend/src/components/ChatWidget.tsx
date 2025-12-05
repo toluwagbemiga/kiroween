@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { gql, useMutation } from '@apollo/client';
+import { gql } from '@apollo/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Loading } from '@/components/ui';
 import {
@@ -11,6 +11,7 @@ import {
   SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/lib/utils';
+import { useCallPromptMutation } from '@/lib/graphql/generated/hooks';
 
 // GraphQL Mutation
 const CALL_PROMPT_MUTATION = gql`
@@ -50,7 +51,7 @@ export const ChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [callPrompt, { loading }] = useMutation(CALL_PROMPT_MUTATION);
+  const [callPrompt, { loading }] = useCallPromptMutation();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

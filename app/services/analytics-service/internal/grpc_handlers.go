@@ -128,6 +128,37 @@ func (s *AnalyticsServer) GetUserCount(ctx context.Context, req *pb.GetUserCount
 	}, nil
 }
 
+// GetAnalyticsSummary returns analytics summary for a user
+func (s *AnalyticsServer) GetAnalyticsSummary(ctx context.Context, req *pb.GetAnalyticsSummaryRequest) (*pb.GetAnalyticsSummaryResponse, error) {
+	// Return mock data for now - in production this would query the analytics provider
+	s.logger.Debug("GetAnalyticsSummary called",
+		zap.String("user_id", req.UserId),
+		zap.Int64("start_time", req.StartTime),
+		zap.Int64("end_time", req.EndTime))
+
+	// Mock data
+	eventsByType := map[string]int64{
+		"page_view":    150,
+		"button_click": 45,
+		"form_submit":  12,
+		"api_call":     89,
+	}
+
+	topEvents := []*pb.TopEvent{
+		{EventName: "page_view", Count: 150},
+		{EventName: "api_call", Count: 89},
+		{EventName: "button_click", Count: 45},
+		{EventName: "form_submit", Count: 12},
+	}
+
+	return &pb.GetAnalyticsSummaryResponse{
+		TotalEvents:  296,
+		UniqueUsers:  15,
+		EventsByType: eventsByType,
+		TopEvents:    topEvents,
+	}, nil
+}
+
 // HealthCheck returns service health status
 func (s *AnalyticsServer) HealthCheck(ctx context.Context, req *pb.HealthCheckRequest) (*pb.HealthCheckResponse, error) {
 	return &pb.HealthCheckResponse{

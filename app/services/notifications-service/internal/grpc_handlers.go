@@ -240,3 +240,72 @@ func (s *NotificationsServer) DisconnectUser(ctx context.Context, req *pb.Discon
 		DisconnectedCount: int32(disconnectedCount),
 	}, nil
 }
+
+// GetPreferences returns notification preferences for a user
+func (s *NotificationsServer) GetPreferences(ctx context.Context, req *pb.GetPreferencesRequest) (*pb.GetPreferencesResponse, error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	// Return default preferences (in production, fetch from database)
+	s.logger.Debug("GetPreferences called", zap.String("user_id", req.UserId))
+
+	return &pb.GetPreferencesResponse{
+		EmailEnabled:   true,
+		PushEnabled:    true,
+		InAppEnabled:   true,
+		MutedChannels:  []string{},
+	}, nil
+}
+
+// UpdatePreferences updates notification preferences for a user
+func (s *NotificationsServer) UpdatePreferences(ctx context.Context, req *pb.UpdatePreferencesRequest) (*pb.UpdatePreferencesResponse, error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	// In production, save to database
+	s.logger.Info("UpdatePreferences called",
+		zap.String("user_id", req.UserId),
+		zap.Bool("email_enabled", req.EmailEnabled),
+		zap.Bool("push_enabled", req.PushEnabled),
+		zap.Bool("in_app_enabled", req.InAppEnabled))
+
+	return &pb.UpdatePreferencesResponse{
+		Success: true,
+	}, nil
+}
+
+// GenerateConnectionToken generates a token for Socket.IO connection
+func (s *NotificationsServer) GenerateConnectionToken(ctx context.Context, req *pb.GenerateConnectionTokenRequest) (*pb.GenerateConnectionTokenResponse, error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument, "user_id is required")
+	}
+
+	// Generate a simple token (in production, use JWT or similar)
+	token := "socket_" + req.UserId + "_" + generateRandomString(32)
+	expiresAt := getCurrentTimestamp() + 3600 // 1 hour from now
+
+	s.logger.Debug("GenerateConnectionToken called",
+		zap.String("user_id", req.UserId),
+		zap.String("token", token))
+
+	return &pb.GenerateConnectionTokenResponse{
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}, nil
+}
+
+// Helper functions
+func generateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[i%len(charset)]
+	}
+	return string(b)
+}
+
+func getCurrentTimestamp() int64 {
+	return int64(1000000000) // Placeholder
+}

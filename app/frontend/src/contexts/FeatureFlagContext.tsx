@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { useAuth } from './AuthContext';
-import { gql, useQuery } from '@apollo/client';
+import { gql } from '@apollo/client';
+import { useMeQuery } from '@/lib/graphql/generated/hooks';
 
 // GraphQL Query
 const ME_QUERY = gql`
@@ -33,7 +34,7 @@ export const FeatureFlagProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const { isAuthenticated } = useAuth();
 
   // Fetch user data including enabled features
-  const { data, loading } = useQuery(ME_QUERY, {
+  const { data, loading } = useMeQuery({
     skip: !isAuthenticated,
     fetchPolicy: 'cache-and-network',
   });

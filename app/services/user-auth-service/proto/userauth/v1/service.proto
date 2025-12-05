@@ -18,10 +18,17 @@ service UserAuthService {
   rpc RequestPasswordReset(PasswordResetRequest) returns (PasswordResetResponse);
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
   
+  // User Management
+  rpc GetUser(GetUserRequest) returns (GetUserResponse);
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc UpdateUser(UpdateUserRequest) returns (UpdateUserResponse);
+  
   // RBAC Management
   rpc CreateRole(CreateRoleRequest) returns (Role);
   rpc UpdateRole(UpdateRoleRequest) returns (Role);
   rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   rpc AssignRoleToUser(AssignRoleRequest) returns (AssignRoleResponse);
   rpc RevokeRoleFromUser(RevokeRoleRequest) returns (RevokeRoleResponse);
   
@@ -104,6 +111,35 @@ message ResetPasswordResponse {
   bool success = 1;
 }
 
+// User Management Messages
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+message ListUsersRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  int32 total_count = 2;
+}
+
+message UpdateUserRequest {
+  string user_id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message UpdateUserResponse {
+  User user = 1;
+}
+
 // RBAC Messages
 message CreateRoleRequest {
   string name = 1;
@@ -124,6 +160,24 @@ message DeleteRoleRequest {
 
 message DeleteRoleResponse {
   bool success = 1;
+}
+
+message GetRoleRequest {
+  string role_id = 1;
+}
+
+message GetRoleResponse {
+  Role role = 1;
+}
+
+message ListRolesRequest {
+  int32 limit = 1;
+  int32 offset = 2;
+}
+
+message ListRolesResponse {
+  repeated Role roles = 1;
+  int32 total_count = 2;
 }
 
 message AssignRoleRequest {

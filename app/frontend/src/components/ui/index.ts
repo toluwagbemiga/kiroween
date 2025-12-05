@@ -22,3 +22,5 @@ export type { AvatarProps, AvatarGroupProps } from './Avatar';
 
 export { Toast, ToastContainer, useToast } from './Toast';
 export type { ToastProps, ToastContainerProps } from './Toast';
+
+export { Skeleton, StatCardSkeleton, ActivityItemSkeleton } from './Skeleton';

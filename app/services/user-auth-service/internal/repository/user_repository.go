@@ -13,6 +13,8 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (*domain.User, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	Update(ctx context.Context, user *domain.User) error
+	List(ctx context.Context, limit, offset int) ([]*domain.User, error)
+	Count(ctx context.Context) (int, error)
 	GetUserRoles(ctx context.Context, userID string) ([]domain.Role, error)
 	AssignRole(ctx context.Context, userID, roleID string) error
 	RevokeRole(ctx context.Context, userID, roleID string) error
@@ -92,4 +94,24 @@ func (r *userRepository) RevokeRole(ctx context.Context, userID, roleID string) 
 		"DELETE FROM user_roles WHERE user_id = ? AND role_id = ?",
 		userID, roleID,
 	).Error
+}
+
+// List lists users with pagination
+func (r *userRepository) List(ctx context.Context, limit, offset int) ([]*domain.User, error) {
+	var users []*domain.User
+	err := r.db.WithContext(ctx).
+		Preload("Roles.Permissions").
+		Limit(limit).
+		Offset(offset).
+		Order("created_at DESC").
+		Find(&users).Error
+	
+	return users, err
+}
+
+// Count counts total users
+func (r *userRepository) Count(ctx context.Context) (int, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&domain.User{}).Count(&count).Error
+	return int(count), err
 }

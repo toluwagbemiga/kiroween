@@ -29,7 +29,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main className="p-4 lg:p-6 pt-4">
           {/* Page header */}
           {(title || description || actions) && (
             <div className="mb-6">

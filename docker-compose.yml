@@ -227,6 +227,21 @@ services:
     depends_on:
       - graphql-gateway
 
+  # pgAdmin - Postgres UI
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@haunted.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+
   # Documentation (run locally with: cd docs && npm install && npm start)
   # docs:
   #   build:
@@ -239,3 +254,4 @@ volumes:
   postgres-data:
   redis-data:
   unleash-db-data:
+  pgadmin-data:

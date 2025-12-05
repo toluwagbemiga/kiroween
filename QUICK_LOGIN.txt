@@ -1,0 +1,41 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                    DEMO USER LOGIN CREDENTIALS                   ║
+╚══════════════════════════════════════════════════════════════════╝
+
+🌐 Application URL: http://localhost:3000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👑 ADMIN (Full Access)
+   Email:    admin@haunted.dev
+   Password: Demo123!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👥 MEMBERS (Standard Access)
+   
+   Email:    member@haunted.dev
+   Password: Demo123!
+   
+   Email:    john.doe@haunted.dev
+   Password: Demo123!
+   
+   Email:    jane.smith@haunted.dev
+   Password: Demo123!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+👁️  VIEWERS (Read-Only)
+   
+   Email:    viewer@haunted.dev
+   Password: Demo123!
+   
+   Email:    guest@haunted.dev
+   Password: Demo123!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 Note: All passwords are "Demo123!" (case-sensitive)
+
+🔄 To re-seed users:
+   Get-Content demo/seed-users-simple.sql | docker exec -i kiroproject-postgres-1 psql -U haunted -d haunted

@@ -316,3 +316,31 @@ func (s *RBACService) GetUserPermissions(ctx context.Context, userID string) ([]
 	
 	return permissions, nil
 }
+
+// GetRole gets a role by ID
+func (s *RBACService) GetRole(ctx context.Context, roleID string) (*domain.Role, error) {
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, errors.New(errors.ErrCodeRoleNotFound, "role not found")
+		}
+		return nil, errors.Wrap(errors.ErrCodeInternal, "failed to get role", err)
+	}
+	
+	return role, nil
+}
+
+// ListRoles lists all roles with pagination
+func (s *RBACService) ListRoles(ctx context.Context, limit, offset int) ([]*domain.Role, int, error) {
+	roles, err := s.roleRepo.List(ctx, limit, offset)
+	if err != nil {
+		return nil, 0, errors.Wrap(errors.ErrCodeInternal, "failed to list roles", err)
+	}
+	
+	total, err := s.roleRepo.Count(ctx)
+	if err != nil {
+		return nil, 0, errors.Wrap(errors.ErrCodeInternal, "failed to count roles", err)
+	}
+	
+	return roles, total, nil
+}

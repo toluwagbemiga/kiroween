@@ -23,6 +23,15 @@ service NotificationsService {
   
   // DisconnectUser disconnects all connections for a user
   rpc DisconnectUser(DisconnectUserRequest) returns (DisconnectUserResponse);
+  
+  // GetPreferences returns notification preferences for a user
+  rpc GetPreferences(GetPreferencesRequest) returns (GetPreferencesResponse);
+  
+  // UpdatePreferences updates notification preferences for a user
+  rpc UpdatePreferences(UpdatePreferencesRequest) returns (UpdatePreferencesResponse);
+  
+  // GenerateConnectionToken generates a token for Socket.IO connection
+  rpc GenerateConnectionToken(GenerateConnectionTokenRequest) returns (GenerateConnectionTokenResponse);
 }
 
 message SendToUserRequest {
@@ -92,4 +101,36 @@ message DisconnectUserRequest {
 
 message DisconnectUserResponse {
   int32 disconnected_count = 1;
+}
+
+message GetPreferencesRequest {
+  string user_id = 1;
+}
+
+message GetPreferencesResponse {
+  bool email_enabled = 1;
+  bool push_enabled = 2;
+  bool in_app_enabled = 3;
+  repeated string muted_channels = 4;
+}
+
+message UpdatePreferencesRequest {
+  string user_id = 1;
+  bool email_enabled = 2;
+  bool push_enabled = 3;
+  bool in_app_enabled = 4;
+  repeated string muted_channels = 5;
+}
+
+message UpdatePreferencesResponse {
+  bool success = 1;
+}
+
+message GenerateConnectionTokenRequest {
+  string user_id = 1;
+}
+
+message GenerateConnectionTokenResponse {
+  string token = 1;
+  int64 expires_at = 2;
 }
